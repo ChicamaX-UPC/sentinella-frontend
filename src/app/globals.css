@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* Alineado con sentinella-landingpage (tema naranja) */
+:root {
+  --accent: #ff8c42;
+  --accent-hover: #ff7629;
+  --accent-soft: rgba(255, 140, 66, 0.15);
+  --accent-border: rgba(255, 140, 66, 0.4);
+  --accent-blue: #5eb3ff;
+
+  --bg-navy: #120d0a;
+  --bg-navy-2: #0d0907;
+  --bg-black: #0a0806;
+  --bg-card-dark: #16110e;
+  --bg-card-stat: #1a1512;
+
+  --text-light: #ffffff;
+  --text-muted-dark: #94a3b8;
+
+  --input-bg: #0c1219;
+  --input-bg-focus: #0e1520;
+
+  /* Login / registro: rgb(10, 8, 6) = #0a0806 */
+  --auth-bg: #0a0806;
+}
+
+@theme inline {
+  --color-background: var(--bg-navy);
+  --color-foreground: var(--text-light);
+  --color-muted: var(--text-muted-dark);
+  --color-app: var(--bg-navy);
+  --color-surface: var(--bg-black);
+  --color-surface-elevated: var(--bg-card-dark);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-blue: var(--accent-blue);
+  --color-auth-bg: var(--auth-bg);
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+body {
+  background: var(--bg-navy);
+  color: var(--text-light);
+  font-family: var(--font-sans);
+}
+
+/* Pantalla login/registro: html y body con el mismo café oscuro (sin halo del --bg-navy) */
+html:has(.auth-scheme),
+html:has(.auth-scheme) body {
+  background-color: var(--auth-bg);
+  background: var(--auth-bg);
+}
+
+/* Autenticación: evitar caja azul de autofill (Chrome) sobre fondo oscuro */
+.auth-scheme input:-webkit-autofill,
+.auth-scheme input:-webkit-autofill:hover,
+.auth-scheme input:-webkit-autofill:focus,
+.auth-scheme input:-webkit-autofill:active,
+.auth-scheme textarea:-webkit-autofill,
+.auth-scheme select:-webkit-autofill {
+  -webkit-text-fill-color: #e2e8f0;
+  caret-color: #e2e8f0;
+  box-shadow: 0 0 0 1000px var(--auth-bg) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-bg) inset;
+  border-color: rgba(255, 255, 255, 0.18);
+  transition: background-color 9999s ease-out 0s;
+}
