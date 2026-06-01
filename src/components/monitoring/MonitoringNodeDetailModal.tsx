@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { ApiError, apiJson } from "@/lib/api/http";
+import { Pagination } from "@/components/ui/Pagination";
+import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import type { PageResponse } from "@/lib/api/page";
 import { labelSensorType } from "@/lib/ui/labels";
 
 type SensorNode = {
@@ -36,13 +38,33 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
   const [node, setNode] = useState<SensorNode | null>(null);
   const [status, setStatus] = useState<Reading | null>(null);
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [readingsPage, setReadingsPage] = useState(0);
+  const [readingsPageSize, setReadingsPageSize] = useState(15);
+  const [readingsTotal, setReadingsTotal] = useState(0);
+  const [readingsTotalPages, setReadingsTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const loadReadings = useCallback(
+    (id: string, page: number, limit: number) => {
+      return apiJson<PageResponse<Reading>>(
+        withQuery(`nodes/${id}/readings`, { page, limit })
+      ).then((res) => {
+        setReadings(res.content);
+        setReadingsTotal(res.totalElements);
+        setReadingsTotalPages(res.totalPages);
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     if (!open || !nodeId) {
       setNode(null);
       setStatus(null);
       setReadings([]);
+      setReadingsPage(0);
+      setReadingsTotal(0);
+      setReadingsTotalPages(0);
       setError(null);
       return;
     }
@@ -50,17 +72,16 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
     Promise.all([
       apiJson<SensorNode>(`nodes/${nodeId}`).catch(() => null),
       apiJson<Reading>(`nodes/${nodeId}/status`).catch(() => null),
-      apiJson<Reading[]>(`nodes/${nodeId}/readings?limit=30`).catch(() => []),
+      loadReadings(nodeId, readingsPage, readingsPageSize),
     ])
-      .then(([n, st, r]) => {
+      .then(([n, st]) => {
         setNode(n);
         setStatus(st);
-        setReadings(Array.isArray(r) ? r : []);
       })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "Error al cargar");
       });
-  }, [open, nodeId]);
+  }, [open, nodeId, readingsPage, readingsPageSize, loadReadings]);
 
   const title = node?.name ?? (nodeId ? `Nodo ${nodeId.slice(0, 8)}…` : "Detalle del nodo");
 
@@ -102,7 +123,7 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
             <p className="text-sm text-slate-500">Sin lecturas recientes.</p>
           )}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Historial (30)</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Historial de lecturas</p>
             <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto text-xs text-slate-400">
               {readings.map((r) => (
                 <li key={r.id} className="border-b border-white/5 py-1">
@@ -111,6 +132,21 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
               ))}
             </ul>
             {readings.length === 0 ? <p className="text-xs text-slate-600">Sin entradas.</p> : null}
+            {readingsTotal > 0 ? (
+              <Pagination
+                className="mt-2 rounded-lg border border-white/10"
+                page={readingsPage}
+                totalPages={readingsTotalPages}
+                totalElements={readingsTotal}
+                pageSize={readingsPageSize}
+                pageSizeOptions={[10, 15, 30]}
+                onPageChange={setReadingsPage}
+                onPageSizeChange={(size) => {
+                  setReadingsPageSize(size);
+                  setReadingsPage(0);
+                }}
+              />
+            ) : null}
           </div>
         </div>
       ) : !error && open && nodeId ? (
