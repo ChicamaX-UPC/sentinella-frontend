@@ -130,7 +130,7 @@ export default function MobileAlertDetailPage() {
     setBusy(true);
     setError(null);
     try {
-      await sendPatch({ action: "ASSIGN", assignedTo: assignTo.trim(), notes: notes.trim() || undefined });
+      await sendPatch({ action: "COMPLETE", assignedTo: assignTo.trim(), notes: notes.trim() || undefined });
     } finally {
       setBusy(false);
     }

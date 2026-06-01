@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ApiError, apiJson } from "@/lib/api/http";
+import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import type { PageResponse } from "@/lib/api/page";
 import { playFieldAlertChime, pulseFieldAlertVibration } from "@/lib/mobile/alertTone";
 import { loadAlertsCache, saveAlertsCache } from "@/lib/mobile/offlineCache";
 
@@ -17,10 +18,10 @@ export default function MobileAlertsPage() {
   useEffect(() => {
     setError(null);
     setFromCache(false);
-    apiJson<AlertRow[]>("alerts")
-      .then((list) => {
-        setRows(list);
-        void saveAlertsCache(JSON.stringify(list));
+    apiJson<PageResponse<AlertRow>>(withQuery("alerts", { page: 0, limit: 100 }))
+      .then((res) => {
+        setRows(res.content);
+        void saveAlertsCache(JSON.stringify(res.content));
       })
       .catch(async () => {
         const raw = await loadAlertsCache();
