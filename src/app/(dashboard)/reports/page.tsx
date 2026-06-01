@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import { dayInputToRangeEndIso, dayInputToRangeStartIso } from "@/lib/dates";
+import { ApiError, apiFetch, apiJson, withQuery } from "@/lib/api/http";
 import { labelReportFormat } from "@/lib/ui/labels";
 import { useSessionStore } from "@/stores/useSessionStore";
 
@@ -16,8 +18,6 @@ type Report = {
   generatedBy?: string;
   storageKey?: string;
 };
-
-type DownloadInfo = { reportId: string; downloadUrl: string };
 
 const TYPES = ["REGULATORY_OEFA", "ALERT_HISTORY", "INSPECTION_SUMMARY"] as const;
 const FORMATS = ["PDF", "EXCEL"] as const;
@@ -68,8 +68,12 @@ export default function ReportsPage() {
     setBusy(true);
     setError(null);
     try {
-      const fromIso = new Date(from).toISOString();
-      const toIso = new Date(to).toISOString();
+      if (from > to) {
+        setError("La fecha inicial no puede ser posterior a la final.");
+        return;
+      }
+      const fromIso = dayInputToRangeStartIso(from);
+      const toIso = dayInputToRangeEndIso(to);
       await apiJson<Report>("reports/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,31 +93,35 @@ export default function ReportsPage() {
     }
   }
 
-  async function download(reportId: string) {
+  async function download(reportId: string, formatHint?: string) {
     setError(null);
     try {
-      const info = await apiJson<DownloadInfo>(`reports/${reportId}/download`);
-      if (info.downloadUrl) {
-        window.open(String(info.downloadUrl), "_blank", "noopener,noreferrer");
+      const res = await apiFetch(`reports/${reportId}/content`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new ApiError(`HTTP ${res.status}`, res.status, text);
       }
+      const blob = await res.blob();
+      const ext =
+        formatHint === "EXCEL" || formatHint === "XLSX"
+          ? "xlsx"
+          : formatHint === "PDF"
+            ? "pdf"
+            : "bin";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte-${reportId.slice(0, 8)}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.body ?? `Error ${err.status}` : "Error al obtener enlace");
+      setError(err instanceof ApiError ? err.body ?? `Error ${err.status}` : "Error al descargar");
     }
   }
 
-  const previewTitle =
-    type === "REGULATORY_OEFA"
-      ? "Informe ambiental (OEFA)"
-      : type === "ALERT_HISTORY"
-        ? "Historial de alertas"
-        : "Resumen de rondas de inspección";
-
   return (
     <div className="mx-auto max-w-7xl">
-      <PageHeader
-        title="Reportes regulatorios y operativos"
-        description="Genera informes en PDF o Excel por rango de fechas y tranque. Cuando estén listos, descárgalos desde el historial."
-      />
+      <PageHeader eyebrow="Operación" title="Reportes regulatorios y operativos" />
       {error ? <p className="mb-4 text-sm text-amber-400">{error}</p> : null}
 
       <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
@@ -164,26 +172,22 @@ export default function ReportsPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-500">Desde</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/15 bg-app px-2 py-2 text-xs text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Hasta</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/15 bg-app px-2 py-2 text-xs text-slate-100"
-                  />
-                </div>
+                <DatePicker
+                  id="report-from"
+                  label="Desde"
+                  value={from}
+                  onChange={setFrom}
+                  required
+                  max={to || undefined}
+                />
+                <DatePicker
+                  id="report-to"
+                  label="Hasta"
+                  value={to}
+                  onChange={setTo}
+                  required
+                  min={from || undefined}
+                />
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <button
@@ -206,15 +210,9 @@ export default function ReportsPage() {
         </div>
 
         <div className="min-w-0 space-y-4">
-          <div className="rounded-xl border border-dashed border-accent/35 bg-surface-elevated/40 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent/90">Vista previa (contenido)</p>
-            <p className="mt-1 text-lg font-semibold text-slate-100">{previewTitle}</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              El PDF o Excel se compondrá en el servicio de reportes con los rangos de fecha y el tranque indicados. Aquí
-              solo mostramos el contexto elegido; la descarga real aparece en el historial cuando el backend finalice el
-              trabajo.
-            </p>
-            <ul className="mt-4 space-y-2 border-t border-white/10 pt-4 text-xs text-slate-500">
+          <div className="rounded-xl border border-white/10 bg-surface-elevated/50 p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tipos de informe</p>
+            <ul className="mt-3 space-y-2 text-sm text-slate-400">
               <li>· OEFA: formato orientado a cumplimiento ambiental.</li>
               <li>· Historial de alertas: trazabilidad de eventos por periodo.</li>
               <li>· Inspecciones: síntesis de rondas de campo (cuando aplique).</li>
@@ -240,7 +238,7 @@ export default function ReportsPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => void download(r.id)}
+                    onClick={() => void download(r.id, r.format)}
                     className="shrink-0 text-xs font-medium text-accent hover:underline"
                   >
                     Descargar

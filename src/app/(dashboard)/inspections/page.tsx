@@ -3,9 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { InspectionRoundModal } from "@/components/inspections/InspectionRoundModal";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
+import { dayInputToRangeStartIso } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ApiError, apiJson } from "@/lib/api/http";
+import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import type { PageResponse } from "@/lib/api/page";
 import { labelRoundStatus } from "@/lib/ui/labels";
 import { useSessionStore } from "@/stores/useSessionStore";
 
@@ -34,21 +38,29 @@ function InspectionsPageContent() {
   const user = useSessionStore((s) => s.user);
 
   const [rounds, setRounds] = useState<Round[]>([]);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(12);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tailingDamId, setTailingDamId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
   const detailId = searchParams.get("ronda");
   const newModalOpen = searchParams.get("nuevaRonda") === "1";
 
   const load = useCallback(() => {
     setError(null);
-    apiJson<Round[]>("rounds")
-      .then(setRounds)
+    apiJson<PageResponse<Round>>(withQuery("rounds", { page, limit: pageSize }))
+      .then((res) => {
+        setRounds(res.content);
+        setTotalElements(res.totalElements);
+        setTotalPages(res.totalPages);
+      })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "Error al cargar rondas");
       });
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => {
     useSessionStore.getState().hydrate();
@@ -73,7 +85,7 @@ function InspectionsPageContent() {
     setBusy(true);
     setError(null);
     try {
-      const iso = new Date(scheduledAt).toISOString();
+      const iso = dayInputToRangeStartIso(scheduledDate);
       await apiJson<Round>("rounds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,7 +95,7 @@ function InspectionsPageContent() {
           offlineCreated: false,
         }),
       });
-      setScheduledAt("");
+      setScheduledDate("");
       load();
       replaceQuery("/inspections");
     } catch (err: unknown) {
@@ -110,20 +122,20 @@ function InspectionsPageContent() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          title="Rondas de inspección"
-          description="Programa y sigue las rondas de campo por tranque. Abre una tarjeta para el checklist."
-        />
-        <button
-          type="button"
-          onClick={() => openNewModal()}
-          className="shrink-0 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[#1a0f08] hover:bg-accent-hover"
-        >
-          Nueva ronda
-        </button>
-      </div>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <PageHeader
+        eyebrow="Operación"
+        title="Rondas de inspección"
+        actions={
+          <button
+            type="button"
+            onClick={() => openNewModal()}
+            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[#1a0f08] hover:bg-accent-hover"
+          >
+            Nueva ronda
+          </button>
+        }
+      />
 
       {error ? <p className="mt-4 text-sm text-amber-400">{error}</p> : null}
 
@@ -147,6 +159,21 @@ function InspectionsPageContent() {
         <p className="mt-10 text-center text-sm text-slate-500">No hay rondas todavía.</p>
       ) : null}
 
+      {totalElements > 0 ? (
+        <Pagination
+          className="mt-6 rounded-xl border border-white/10 bg-surface-elevated/40"
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(0);
+          }}
+        />
+      ) : null}
+
       <Modal open={newModalOpen} onClose={closeNewModal} title="Nueva ronda de inspección" panelClassName="max-w-md">
         <form onSubmit={(ev) => void createRound(ev)} className="space-y-3 text-sm">
           <div>
@@ -158,16 +185,13 @@ function InspectionsPageContent() {
               className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
             />
           </div>
-          <div>
-            <label className="text-xs text-slate-500">Fecha y hora programada</label>
-            <input
-              required
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
-            />
-          </div>
+          <DatePicker
+            id="round-scheduled-date"
+            label="Fecha programada"
+            value={scheduledDate}
+            onChange={setScheduledDate}
+            required
+          />
           <button
             type="submit"
             disabled={busy}

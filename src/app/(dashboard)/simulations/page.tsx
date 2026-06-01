@@ -90,10 +90,7 @@ function SimulationsPageContent() {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          title="Escenarios de simulación"
-          description="Escenarios por tranque: publícalos para el gemelo digital o edítalos aquí."
-        />
+        <PageHeader eyebrow="Análisis" title="Escenarios de simulación" />
         <button
           type="button"
           onClick={() => router.replace("/simulations?nuevo=1", { scroll: false })}

@@ -22,7 +22,7 @@ export function SiteOpsBanner({ totalNodes, activeAlerts, criticalAlerts, loadin
   const barClass = critical
     ? "bg-red-950/50 text-red-200 border-red-800/40"
     : warning
-      ? "bg-amber-950/40 text-amber-100 border-amber-800/35"
+      ? "border-accent/40 bg-accent/10 text-accent"
       : "bg-accent/10 text-slate-200 border-accent/25";
 
   return (

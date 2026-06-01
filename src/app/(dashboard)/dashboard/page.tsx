@@ -103,10 +103,7 @@ export default function ExecutiveDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PageHeader
-        title="Panel ejecutivo"
-        description="Resumen operativo del tranque, mapa de nodos y disponibilidad de telemetría."
-      />
+      <PageHeader eyebrow="Inicio" title="Panel ejecutivo" />
 
       <SiteOpsBanner
         loading={kpiLoading}
@@ -135,14 +132,14 @@ export default function ExecutiveDashboardPage() {
         <KpiStatCard
           label="Nodos con telemetría reciente"
           value={kpi?.nodesWithRecentData ?? "—"}
-          hint={nodesTotal ? `${Math.round((nodesOnline / Math.max(nodesTotal, 1)) * 100)}% con datos` : undefined}
+          hint={nodesTotal ? `${Math.round((nodesOnline / Math.max(nodesTotal, 1)) * 100)}% con datos (última hora)` : undefined}
           variant="default"
           icon={<IconGauge />}
         />
         <KpiStatCard
           label="Cobertura de datos"
           value={nodesTotal ? `${nodesOnline}/${nodesTotal}` : "—"}
-          hint="Nodos con lecturas recientes"
+          hint="Nodos con lectura en la última hora"
           variant="accent"
           icon={<IconGauge />}
         />

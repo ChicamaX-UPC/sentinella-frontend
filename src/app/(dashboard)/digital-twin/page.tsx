@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SimulationControl, TWIN_SIMULATIONS } from "@/components/DigitalTwin/simulations";
 import { TwinMetrics } from "@/components/DigitalTwin/scene/SimulationEffects";
-import { ApiError, apiJson } from "@/lib/api/http";
+import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import type { PageResponse } from "@/lib/api/page";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 
 const TwinCanvas = dynamic(() => import("@/components/DigitalTwin/TwinCanvas"), {
@@ -62,8 +63,8 @@ export default function DigitalTwinPage() {
   const stop = useSimulationStore((s) => s.stop);
 
   useEffect(() => {
-    apiJson<TwinNode[]>("nodes")
-      .then(setNodes)
+    apiJson<PageResponse<TwinNode>>(withQuery("nodes", { page: 0, limit: 200 }))
+      .then((res) => setNodes(res.content))
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "No se pudieron cargar los nodos");
       });
@@ -125,10 +126,7 @@ export default function DigitalTwinPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Gemelo digital"
-        description="Escena 3D del tranque con telemetría y modos en vivo o simulación. Los datos llegan por los servicios habituales de la aplicación."
-      />
+      <PageHeader eyebrow="Operación" title="Gemelo digital" />
       {error ? <p className="mb-3 text-sm text-amber-400">{error}</p> : null}
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <TwinCanvas nodes={nodes} onSelectSensor={setSelected} onMetricsChange={setMetrics} />

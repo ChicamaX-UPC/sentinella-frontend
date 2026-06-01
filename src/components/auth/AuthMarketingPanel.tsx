@@ -1,3 +1,5 @@
+import { AUTH_BULLET_CLASS } from "@/lib/auth/auth-ui";
+
 /**
  * Hero: `auth-hero-mining.png` (puntos blancos, fondo con canal alfa).
  * Regenerar transparencia: `npm run auth-hero:alpha`. SVG alternativo: `auth-hero-terrain-dots.svg`.
@@ -8,7 +10,7 @@ const HERO_SRC = USE_SVG_DOTS ? "/auth-hero-terrain-dots.svg" : AUTH_HERO;
 
 export function AuthMarketingPanel() {
   return (
-    <aside className="relative hidden min-h-[50vh] w-full bg-auth-bg lg:flex lg:min-h-screen lg:flex-1 lg:flex-col lg:items-center lg:justify-center">
+    <aside className="auth-panel relative hidden min-h-[50vh] w-full lg:flex lg:min-h-screen lg:flex-1 lg:flex-col lg:items-center lg:justify-center">
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center justify-center gap-8 px-6 py-10 sm:px-10 lg:flex-row lg:items-end lg:justify-center lg:gap-0 lg:px-10 lg:py-10 xl:max-w-6xl">
         {/* Textos: más arriba, más grande, z alto para quedar por encima de la imagen al cruzarse */}
         <div className="relative z-30 w-full min-w-0 max-w-md shrink-0 lg:max-w-[26rem] xl:max-w-lg lg:-translate-y-10 lg:pb-4 lg:pr-2 xl:-translate-y-14 xl:pr-4">
@@ -21,15 +23,15 @@ export function AuthMarketingPanel() {
           </p>
           <ul className="mt-8 space-y-3 text-[0.9375rem] leading-snug text-slate-200/95">
             <li className="flex gap-2 [text-shadow:0_1px_12px_rgba(2,8,23,0.88)]">
-              <span className="shrink-0 text-accent">●</span>
+              <span className={AUTH_BULLET_CLASS}>●</span>
               Dashboard ejecutivo y mapa georreferenciado
             </li>
             <li className="flex gap-2 [text-shadow:0_1px_12px_rgba(2,8,23,0.88)]">
-              <span className="shrink-0 text-accent">●</span>
+              <span className={AUTH_BULLET_CLASS}>●</span>
               PWA offline para operarios en zona altoandina
             </li>
             <li className="flex gap-2 [text-shadow:0_1px_12px_rgba(2,8,23,0.88)]">
-              <span className="shrink-0 text-accent">●</span>
+              <span className={AUTH_BULLET_CLASS}>●</span>
               Gemelo digital y simulación de escenarios
             </li>
           </ul>
