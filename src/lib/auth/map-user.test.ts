@@ -15,5 +15,6 @@ describe("mapUserResourceToSession (IAM / JWT login contract)", () => {
     expect(u.role).toBe("PLANT_MANAGER");
     expect(u.tailingDamIds).toHaveLength(1);
     expect(u.active).toBe(true);
+    expect(u.permissions.length).toBeGreaterThan(0);
   });
 });

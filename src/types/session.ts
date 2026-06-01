@@ -7,4 +7,7 @@ export interface SessionUser {
   role: Role;
   tailingDamIds: string[];
   active: boolean;
+  permissions: string[];
+  jobTitle?: string | null;
+  phone?: string | null;
 }

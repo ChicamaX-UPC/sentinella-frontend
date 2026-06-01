@@ -55,6 +55,7 @@ export const config = {
     "/simulations/:path*",
     "/register",
     "/admin/:path*",
+    "/profile",
     "/mobile",
     "/mobile/:path*",
   ],

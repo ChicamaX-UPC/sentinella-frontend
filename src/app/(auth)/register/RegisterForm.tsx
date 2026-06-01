@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { mapUserResourceToSession } from "@/lib/auth/map-user";
+import { AUTH_FIELD_CLASS, AUTH_LINK_CLASS, AUTH_SUBMIT_CLASS } from "@/lib/auth/auth-ui";
 import { useSessionStore } from "@/stores/useSessionStore";
 
 export function RegisterForm() {
@@ -43,9 +44,6 @@ export function RegisterForm() {
     }
   }
 
-  const field =
-    "mt-2 w-full rounded-lg border border-white/15 bg-auth-bg px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-accent/50 focus:bg-auth-bg focus:ring-1 focus:ring-accent/25";
-
   return (
     <div className="w-full">
       <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Crear cuenta</h1>
@@ -64,7 +62,7 @@ export function RegisterForm() {
             required
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className={field}
+            className={AUTH_FIELD_CLASS}
           />
         </div>
         <div>
@@ -78,7 +76,7 @@ export function RegisterForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={field}
+            className={AUTH_FIELD_CLASS}
           />
         </div>
         <div>
@@ -93,21 +91,21 @@ export function RegisterForm() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={field}
+            className={AUTH_FIELD_CLASS}
           />
         </div>
         {error ? <p className="text-sm text-red-400/95">{error}</p> : null}
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
+          className={AUTH_SUBMIT_CLASS}
         >
           {loading ? "Creando cuenta…" : "Registrarse"}
         </button>
       </form>
       <p className="mt-8 border-t border-white/10 pt-7 text-left text-sm text-slate-500">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="font-medium text-accent/95 hover:text-accent-hover hover:underline">
+        <Link href="/login" className={`${AUTH_LINK_CLASS} font-medium`}>
           Iniciar sesión
         </Link>
       </p>
