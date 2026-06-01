@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertRuleDetailModal } from "@/components/alerts/AlertRuleDetailModal";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ApiError, apiFetch, apiJson } from "@/lib/api/http";
+import { formatNodeOptionLabel, useSensorNodeOptions } from "@/hooks/useSensorNodeOptions";
+import { ApiError, apiFetch, apiJson, withQuery } from "@/lib/api/http";
+import type { PageResponse } from "@/lib/api/page";
 import {
   ALERT_SEVERITIES,
   NOTIFY_CHANNELS,
@@ -32,8 +35,24 @@ type Rule = {
   active?: boolean;
 };
 
+const field =
+  "mt-1.5 w-full rounded-xl border border-white/12 bg-black/20 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent/45 focus:ring-1 focus:ring-accent/20";
+
 export default function AlertRulesPage() {
+  const { nodes: nodeOptions, loading: nodesLoading } = useSensorNodeOptions(true);
+  const nodeLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of nodeOptions) {
+      m.set(n.id, formatNodeOptionLabel(n));
+    }
+    return m;
+  }, [nodeOptions]);
+
   const [rules, setRules] = useState<Rule[]>([]);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(12);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -48,18 +67,22 @@ export default function AlertRulesPage() {
     escalationMinutes: "",
   });
 
-  function load() {
+  const load = useCallback(() => {
     setError(null);
-    apiJson<Rule[]>("alert-rules")
-      .then(setRules)
+    apiJson<PageResponse<Rule>>(withQuery("alert-rules", { page, limit: pageSize }))
+      .then((res) => {
+        setRules(res.content);
+        setTotalElements(res.totalElements);
+        setTotalPages(res.totalPages);
+      })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "No se pudieron cargar las reglas");
       });
-  }
+  }, [page, pageSize]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   function toggleChannel(ch: NotifyChannel) {
     setForm((f) => ({
@@ -85,8 +108,13 @@ export default function AlertRulesPage() {
     setBusy(true);
     setError(null);
     try {
+      if (!form.nodeId) {
+        setError("Seleccione un nodo");
+        setBusy(false);
+        return;
+      }
       if (form.channels.length === 0) {
-        setError("Selecciona al menos un canal de notificación");
+        setError("Seleccione al menos un canal de notificación");
         setBusy(false);
         return;
       }
@@ -94,7 +122,7 @@ export default function AlertRulesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nodeId: form.nodeId.trim(),
+          nodeId: form.nodeId,
           sensorType: form.sensorType,
           operator: form.operator,
           thresholdValue: Number(form.thresholdValue),
@@ -105,6 +133,7 @@ export default function AlertRulesPage() {
       });
       resetForm();
       setModalOpen(false);
+      setPage(0);
       load();
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.body ?? `Error ${err.status}` : "No se pudo crear la regla");
@@ -134,67 +163,175 @@ export default function AlertRulesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title="Umbrales y reglas"
-        description="Define cuándo disparar alertas por sensor y umbral. Los cambios aplican según tu rol en el sistema."
-      />
-      {error ? <p className="mb-4 text-sm text-amber-400">{error}</p> : null}
-
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="mx-auto max-w-6xl">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader eyebrow="Alertas" title="Umbrales y reglas" />
         <button
           type="button"
           onClick={() => {
             setError(null);
             setModalOpen(true);
           }}
-          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[#1a0f08] hover:bg-accent-hover"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[#1a0f08] hover:bg-accent-hover"
         >
           Nueva regla
         </button>
       </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => {
-          if (!busy) {
-            setModalOpen(false);
-          }
-        }}
-        title="Nueva regla de umbral"
-      >
-        <form onSubmit={(ev) => void createRule(ev)} className="space-y-3 text-sm">
+      {error ? <p className="mb-4 text-sm text-amber-400">{error}</p> : null}
+
+      <section className="rounded-2xl border border-white/10 bg-surface-elevated/40">
+        <div className="border-b border-white/10 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-200">Reglas configuradas</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {totalElements} regla{totalElements === 1 ? "" : "s"} · página {page + 1} de {Math.max(totalPages, 1)}
+          </p>
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-500">
+                <th className="px-4 py-3 font-medium">Nodo</th>
+                <th className="px-4 py-3 font-medium">Sensor</th>
+                <th className="px-4 py-3 font-medium">Condición</th>
+                <th className="px-4 py-3 font-medium">Severidad</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map((r) => (
+                <tr key={r.id} className="border-b border-white/5 bg-white/[0.02]">
+                  <td className="max-w-[14rem] px-4 py-3">
+                    <p className="truncate text-slate-200" title={nodeLabelById.get(r.nodeId) ?? r.nodeId}>
+                      {nodeLabelById.get(r.nodeId) ?? r.nodeId.slice(0, 8) + "…"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">{labelSensorType(r.sensorType)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                    {labelNumericOperator(r.operator)} {String(r.thresholdValue)}
+                  </td>
+                  <td className="px-4 py-3 text-accent/90">{labelAlertSeverity(r.severity)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setDetailRule(r)}
+                      className="mr-3 text-xs font-medium text-accent hover:underline disabled:opacity-50"
+                    >
+                      Detalle
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void removeRule(r.id)}
+                      className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <ul className="space-y-2 p-4 md:hidden">
+          {rules.map((r) => (
+            <li key={r.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <p className="text-sm font-medium text-slate-100">{nodeLabelById.get(r.nodeId) ?? r.nodeId}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {labelSensorType(r.sensorType)} · {labelNumericOperator(r.operator)} {String(r.thresholdValue)} →{" "}
+                {labelAlertSeverity(r.severity)}
+              </p>
+              <div className="mt-2 flex gap-3">
+                <button type="button" onClick={() => setDetailRule(r)} className="text-xs text-accent">
+                  Detalle
+                </button>
+                <button type="button" onClick={() => void removeRule(r.id)} className="text-xs text-red-400">
+                  Eliminar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {rules.length === 0 ? (
+          <p className="px-4 py-12 text-center text-sm text-slate-500">No hay reglas todavía.</p>
+        ) : null}
+
+        {totalElements > 0 ? (
+          <Pagination
+            className="border-t border-white/10"
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(0);
+            }}
+          />
+        ) : null}
+      </section>
+
+      <Modal open={modalOpen} onClose={() => !busy && setModalOpen(false)} title="Nueva regla de umbral" panelClassName="max-w-lg">
+        <form onSubmit={(ev) => void createRule(ev)} className="space-y-4 text-sm">
           <div>
-            <label className="text-xs text-slate-500">Nodo (identificador)</label>
-            <input
+            <label className="text-xs text-slate-500">Nodo</label>
+            <select
               required
               value={form.nodeId}
+              disabled={nodesLoading || busy}
               onChange={(e) => setForm((f) => ({ ...f, nodeId: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
-              placeholder="UUID del nodo"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500">Tipo de sensor</label>
-            <select
-              value={form.sensorType}
-              onChange={(e) => setForm((f) => ({ ...f, sensorType: e.target.value as SensorTypeCode }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+              className={field}
             >
-              {SENSOR_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {labelSensorType(t)}
+              <option value="">{nodesLoading ? "Cargando nodos…" : "Seleccionar nodo…"}</option>
+              {nodeOptions.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {formatNodeOptionLabel(n)}
                 </option>
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs text-slate-500">Tipo de sensor</label>
+              <select
+                value={form.sensorType}
+                onChange={(e) => setForm((f) => ({ ...f, sensorType: e.target.value as SensorTypeCode }))}
+                className={field}
+              >
+                {SENSOR_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {labelSensorType(t)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Severidad</label>
+              <select
+                value={form.severity}
+                onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value as AlertSeverityCode }))}
+                className={field}
+              >
+                {ALERT_SEVERITIES.map((s) => (
+                  <option key={s} value={s}>
+                    {labelAlertSeverity(s)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs text-slate-500">Condición</label>
               <select
                 value={form.operator}
                 onChange={(e) => setForm((f) => ({ ...f, operator: e.target.value as NumericOperator }))}
-                className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+                className={field}
               >
                 {OPERATORS_NUMERIC.map((o) => (
                   <option key={o} value={o}>
@@ -211,26 +348,12 @@ export default function AlertRulesPage() {
                 step="any"
                 value={form.thresholdValue}
                 onChange={(e) => setForm((f) => ({ ...f, thresholdValue: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+                className={field}
               />
             </div>
           </div>
           <div>
-            <label className="text-xs text-slate-500">Severidad de la alerta</label>
-            <select
-              value={form.severity}
-              onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value as AlertSeverityCode }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
-            >
-              {ALERT_SEVERITIES.map((s) => (
-                <option key={s} value={s}>
-                  {labelAlertSeverity(s)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <span className="text-xs text-slate-500">Canales de notificación</span>
+            <span className="text-xs text-slate-500">Canales</span>
             <div className="mt-2 flex flex-wrap gap-3">
               {NOTIFY_CHANNELS.map((ch) => (
                 <label key={ch} className="flex items-center gap-2 text-xs text-slate-300">
@@ -238,7 +361,7 @@ export default function AlertRulesPage() {
                     type="checkbox"
                     checked={form.channels.includes(ch)}
                     onChange={() => toggleChannel(ch)}
-                    className="rounded border-white/20 bg-app"
+                    className="rounded border-white/20"
                   />
                   {labelNotifyChannel(ch)}
                 </label>
@@ -252,27 +375,25 @@ export default function AlertRulesPage() {
               min={0}
               value={form.escalationMinutes}
               onChange={(e) => setForm((f) => ({ ...f, escalationMinutes: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+              className={field}
             />
           </div>
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               disabled={busy}
               onClick={() => {
-                if (!busy) {
-                  resetForm();
-                  setModalOpen(false);
-                }
+                resetForm();
+                setModalOpen(false);
               }}
-              className="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 disabled:opacity-50"
+              className="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-300"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#1a0f08] hover:bg-accent-hover disabled:opacity-50"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#1a0f08] disabled:opacity-50"
             >
               {busy ? "Guardando…" : "Guardar regla"}
             </button>
@@ -286,43 +407,8 @@ export default function AlertRulesPage() {
         onClose={() => setDetailRule(null)}
         deleteBusy={busy}
         onDelete={(id) => void removeRule(id)}
+        nodeLabel={detailRule ? nodeLabelById.get(detailRule.nodeId) : undefined}
       />
-
-      <h2 className="mt-10 text-sm font-semibold text-slate-200">Reglas configuradas</h2>
-      <p className="mt-1 text-xs text-slate-500">Pulsa una regla para ver el detalle completo en ventana emergente.</p>
-      <ul className="mt-3 space-y-2 text-sm">
-        {rules.map((r) => (
-          <li
-            key={r.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-surface-elevated/50 px-3 py-3"
-          >
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setDetailRule(r)}
-              className="min-w-0 flex-1 text-left transition-colors hover:opacity-90 disabled:opacity-50"
-            >
-              <span className="block text-slate-300">
-                <span className="font-medium text-slate-200">{labelSensorType(r.sensorType)}</span>
-                {" · "}
-                <span className="text-slate-400">{labelNumericOperator(r.operator)}</span> {String(r.thresholdValue)} →{" "}
-                <span className="text-accent/90">{labelAlertSeverity(r.severity)}</span>
-                <span className="text-slate-500"> — nodo {r.nodeId.slice(0, 8)}…</span>
-              </span>
-              <span className="mt-1 block text-xs text-accent/70">Ver detalle →</span>
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void removeRule(r.id)}
-              className="shrink-0 text-xs text-red-400 hover:underline disabled:opacity-50"
-            >
-              Eliminar
-            </button>
-          </li>
-        ))}
-      </ul>
-      {rules.length === 0 ? <p className="mt-4 text-center text-sm text-slate-500">No hay reglas todavía.</p> : null}
     </div>
   );
 }

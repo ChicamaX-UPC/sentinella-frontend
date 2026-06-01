@@ -26,9 +26,10 @@ type Props = {
   onClose: () => void;
   onDelete?: (id: string) => void;
   deleteBusy?: boolean;
+  nodeLabel?: string;
 };
 
-export function AlertRuleDetailModal({ rule, open, onClose, onDelete, deleteBusy }: Props) {
+export function AlertRuleDetailModal({ rule, open, onClose, onDelete, deleteBusy, nodeLabel }: Props) {
   if (!open || !rule) {
     return null;
   }
@@ -42,7 +43,10 @@ export function AlertRuleDetailModal({ rule, open, onClose, onDelete, deleteBusy
         </div>
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Nodo</dt>
-          <dd className="mt-1 break-all font-mono text-xs text-slate-300">{rule.nodeId}</dd>
+          <dd className="mt-1 text-slate-200">{nodeLabel ?? rule.nodeId}</dd>
+          {nodeLabel ? (
+            <dd className="mt-0.5 break-all font-mono text-[11px] text-slate-500">{rule.nodeId}</dd>
+          ) : null}
         </div>
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Tipo de sensor</dt>

@@ -5,6 +5,8 @@ export interface AlertBrief {
   status: string;
   severity?: string;
   nodeId?: string;
+  sensorType?: string;
+  triggeredValue?: string | number;
 }
 
 interface AlertState {
