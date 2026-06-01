@@ -1,7 +1,12 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Alineado con sentinella-landingpage (tema naranja) */
+@custom-variant dark (&:is(.dark *));
+
+/* Alineado con sentinella-landingpage (tema naranja oscuro) */
 :root {
+  /* Marca Sentinella — NO reemplazar por tokens shadcn neutros */
   --accent: #ff8c42;
   --accent-hover: #ff7629;
   --accent-soft: rgba(255, 140, 66, 0.15);
@@ -20,8 +25,43 @@
   --input-bg: #0c1219;
   --input-bg-focus: #0e1520;
 
-  /* Login / registro: rgb(10, 8, 6) = #0a0806 */
-  --auth-bg: #0a0806;
+  /* Login / registro / recuperar: negro puro como diseño original */
+  --auth-bg: #000000;
+  --auth-input-bg: #0a0a0a;
+  --auth-input-bg-focus: #111111;
+
+  /* Tokens shadcn / mapcn — oscuros para no “blanquear” el dashboard */
+  --background: #120d0a;
+  --foreground: #f8fafc;
+  --card: #16110e;
+  --card-foreground: #f8fafc;
+  --popover: #16110e;
+  --popover-foreground: #f8fafc;
+  --primary: #ff8c42;
+  --primary-foreground: #1a0f08;
+  --secondary: #1a1512;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1a1512;
+  --muted-foreground: #94a3b8;
+  --accent-foreground: #1a0f08;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(255, 140, 66, 0.45);
+  --chart-1: #ff8c42;
+  --chart-2: #5eb3ff;
+  --chart-3: #94a3b8;
+  --chart-4: #22c55e;
+  --chart-5: #ef4444;
+  --radius: 0.625rem;
+  --sidebar: #16110e;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #ff8c42;
+  --sidebar-primary-foreground: #1a0f08;
+  --sidebar-accent: rgba(255, 140, 66, 0.15);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: rgba(255, 140, 66, 0.4);
 }
 
 @theme inline {
@@ -36,8 +76,47 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-blue: var(--accent-blue);
   --color-auth-bg: var(--auth-bg);
-  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-auth-input-bg: var(--auth-input-bg);
+  --color-auth-input-bg-focus: var(--auth-input-bg-focus);
+  --color-input-bg: var(--input-bg);
+  --color-input-bg-focus: var(--input-bg-focus);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 body {
@@ -46,11 +125,58 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Pantalla login/registro: html y body con el mismo café oscuro (sin halo del --bg-navy) */
+/* Scroll funcional sin barra visible */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Pantalla login/registro: negro puro en html/body (sin halo del dashboard) */
 html:has(.auth-scheme),
 html:has(.auth-scheme) body {
   background-color: var(--auth-bg);
   background: var(--auth-bg);
+}
+
+/* Auth: diseño original — fondo #000, botón naranja con texto blanco */
+.auth-scheme {
+  --accent: #ff8c42;
+  --accent-hover: #ff7629;
+  --primary: #ff8c42;
+  --primary-foreground: #ffffff;
+  background-color: var(--auth-bg);
+  color: #ffffff;
+}
+
+.auth-scheme .auth-panel {
+  background-color: var(--auth-bg);
+}
+
+/* Respaldo si algún reset de capa base pisa utilidades (botón/enlaces auth) */
+@layer components {
+  .auth-scheme button[type="submit"] {
+    appearance: none;
+    background-color: #ff8c42 !important;
+    color: #ffffff !important;
+    border: none !important;
+  }
+
+  .auth-scheme button[type="submit"]:hover:not(:disabled) {
+    background-color: #ff7629 !important;
+  }
+
+  .auth-scheme a.auth-link {
+    color: #ff8c42 !important;
+  }
+
+  .auth-scheme a.auth-link:hover {
+    color: #ff7629 !important;
+  }
 }
 
 /* Autenticación: evitar caja azul de autofill (Chrome) sobre fondo oscuro */
@@ -62,8 +188,63 @@ html:has(.auth-scheme) body {
 .auth-scheme select:-webkit-autofill {
   -webkit-text-fill-color: #e2e8f0;
   caret-color: #e2e8f0;
-  box-shadow: 0 0 0 1000px var(--auth-bg) inset;
-  -webkit-box-shadow: 0 0 0 1000px var(--auth-bg) inset;
+  box-shadow: 0 0 0 1000px var(--auth-input-bg) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset;
   border-color: rgba(255, 255, 255, 0.18);
   transition: background-color 9999s ease-out 0s;
+}
+
+/* mapcn usa .dark en hijos; mantener marca naranja y fondos café */
+.dark {
+  --accent: #ff8c42;
+  --accent-hover: #ff7629;
+  --background: #120d0a;
+  --foreground: #f8fafc;
+  --card: #16110e;
+  --card-foreground: #f8fafc;
+  --popover: #16110e;
+  --popover-foreground: #f8fafc;
+  --primary: #ff8c42;
+  --primary-foreground: #1a0f08;
+  --secondary: #1a1512;
+  --muted: #1a1512;
+  --muted-foreground: #94a3b8;
+  --accent-foreground: #1a0f08;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(255, 140, 66, 0.45);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-app text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+}
+
+/* Popups del mapa (mapcn): legibles sobre tiles claros, sin heredar blanco del shell */
+.nodes-map-scope .maplibregl-popup-content > div {
+  background: #16110e !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+.nodes-map-scope .text-muted-foreground {
+  color: #94a3b8 !important;
+}
+/* Controles de zoom del mapa: panel oscuro coherente con la app */
+.nodes-map-scope .border-border.bg-background {
+  background-color: #16110e !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
 }
