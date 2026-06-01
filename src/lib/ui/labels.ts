@@ -90,7 +90,7 @@ export function labelNotifyChannel(code: string | undefined): string {
 export function labelAlertStatus(st: string | undefined): string {
   if (!st) return "—";
   const u = st.toUpperCase();
-  if (u.includes("ACTIVE") || u.includes("OPEN")) return "Activa";
+  if (u.includes("RECEIVED") || u.includes("ACTIVE") || u.includes("OPEN")) return "Recibida";
   if (u.includes("ACK")) return "Reconocida";
   if (u.includes("RESOLV")) return "Resuelta";
   if (u.includes("CLOSE") || u.includes("CERRAD")) return "Cerrada";
@@ -127,6 +127,7 @@ export function labelAuditAction(action: string | undefined): string {
   const map: Record<string, string> = {
     ACKNOWLEDGE: "Reconocimiento",
     ASSIGN: "Asignación",
+    COMPLETE: "Completar gestión",
     CLOSE: "Cierre",
     CREATE: "Alta",
     UPDATE: "Actualización",
