@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" role="img" aria-hidden="true" preserveAspectRatio="xMinYMax meet">
+  <defs>
+    <pattern id="d-f" width="2.2" height="2.2" patternUnits="userSpaceOnUse">
+      <rect width="2.2" height="2.2" fill="none" />
+      <circle cx="1.1" cy="1.1" r="0.4" fill="#94a3b8" fill-opacity="0.38" />
+    </pattern>
+    <pattern id="d-m" width="3.2" height="3.2" patternUnits="userSpaceOnUse">
+      <rect width="3.2" height="3.2" fill="none" />
+      <circle cx="1.6" cy="1.6" r="0.45" fill="#2dd4bf" fill-opacity="0.2" />
+    </pattern>
+    <linearGradient id="sil-f" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="white" stop-opacity="0" />
+      <stop offset="0.35" stop-color="white" stop-opacity="0.45" />
+      <stop offset="1" stop-color="white" stop-opacity="1" />
+    </linearGradient>
+    <mask id="m-h">
+      <rect width="1000" height="560" x="0" y="0" fill="url(#sil-f)" />
+    </mask>
+    <clipPath id="c-terrain" clipPathUnits="userSpaceOnUse">
+      <path
+        d="M0 580 L0 120 Q 180 80 400 100 Q 650 40 1000 95 L 1000 580 Z"
+        fill="white"
+      />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#c-terrain)">
+    <rect width="1000" height="560" x="0" y="0" fill="url(#d-f)" mask="url(#m-h)" />
+    <rect width="1000" height="560" x="0" y="0" fill="url(#d-m)" mask="url(#m-h)" opacity="0.85" />
+  </g>
+</svg>
