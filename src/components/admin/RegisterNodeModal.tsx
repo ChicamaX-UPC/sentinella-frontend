@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { useTailingDamOptions } from "@/hooks/useTailingDamOptions";
 import { ApiError, apiJson } from "@/lib/api/http";
 import { SENSOR_TYPES, labelSensorType, type SensorTypeCode } from "@/lib/ui/labels";
 import { useSessionStore } from "@/stores/useSessionStore";
@@ -14,6 +15,7 @@ type Props = {
 
 export function RegisterNodeModal({ open, onClose, onRegistered }: Props) {
   const user = useSessionStore((s) => s.user);
+  const { options: tailingDamOptions } = useTailingDamOptions(open);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -121,13 +123,29 @@ export function RegisterNodeModal({ open, onClose, onRegistered }: Props) {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Tranque (UUID)</label>
-              <input
-                required
-                value={form.tailingDamId}
-                onChange={(e) => setForm((f) => ({ ...f, tailingDamId: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
-              />
+              <label className="text-xs text-slate-500">Tranque</label>
+              {tailingDamOptions.length > 0 ? (
+                <select
+                  required
+                  value={form.tailingDamId}
+                  onChange={(e) => setForm((f) => ({ ...f, tailingDamId: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+                >
+                  <option value="">Seleccionar tranque…</option>
+                  {tailingDamOptions.map((dam) => (
+                    <option key={dam.id} value={dam.id}>
+                      {dam.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  required
+                  value={form.tailingDamId}
+                  onChange={(e) => setForm((f) => ({ ...f, tailingDamId: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+                />
+              )}
             </div>
             <div>
               <label className="text-xs text-slate-500">Tipo de sensor</label>

@@ -34,9 +34,24 @@ const SENSOR_TYPE_LABEL_ES: Record<SensorTypeCode, string> = {
   PLUVIOMETER: "Pluviómetro",
 };
 
+/** Unidades alineadas con el seed/backend (`MonitoringDemoDataSeeder.unitFor`). */
+const SENSOR_TYPE_UNIT: Record<SensorTypeCode, string> = {
+  WATER_LEVEL: "msnm",
+  PRESSURE: "kPa",
+  INCLINATION: "°",
+  PH: "pH",
+  TURBIDITY: "NTU",
+  PLUVIOMETER: "mm/h",
+};
+
 export function labelSensorType(code: string | undefined): string {
   if (!code) return "—";
   return (SENSOR_TYPE_LABEL_ES as Record<string, string>)[code] ?? code;
+}
+
+export function sensorTypeUnit(code: string | undefined): string {
+  if (!code) return "";
+  return SENSOR_TYPE_UNIT[code as SensorTypeCode] ?? "";
 }
 
 export const OPERATORS_NUMERIC = ["GT", "LT", "GTE", "LTE"] as const;
@@ -52,6 +67,17 @@ const OPERATOR_LABEL_ES: Record<NumericOperator, string> = {
 export function labelNumericOperator(code: string | undefined): string {
   if (!code) return "—";
   return OPERATOR_LABEL_ES[code as NumericOperator] ?? code;
+}
+
+export function formatThresholdCondition(
+  operator: string | undefined,
+  value: string | number | undefined,
+  sensorType: string | undefined
+): string {
+  const op = labelNumericOperator(operator);
+  const val = value != null && value !== "" ? String(value) : "—";
+  const unit = sensorTypeUnit(sensorType);
+  return unit ? `${op} ${val} ${unit}` : `${op} ${val}`;
 }
 
 export const ALERT_SEVERITIES = ["INFO", "WARNING", "CRITICAL"] as const;

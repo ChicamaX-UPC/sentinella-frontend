@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { labelAssignableUser, useAssignableUsers } from "@/hooks/useAssignableUsers";
+import { useNodeLabelById } from "@/hooks/useNodeLabelById";
 import { ApiError, apiJson } from "@/lib/api/http";
 import { labelAlertSeverity, labelAlertStatus, labelSensorType } from "@/lib/ui/labels";
 import { enqueueMutation } from "@/lib/mobile/outbox";
@@ -30,6 +32,8 @@ export default function MobileAlertDetailPage() {
   const params = useParams();
   const alertId = typeof params?.alertId === "string" ? params.alertId : "";
   const user = useSessionStore((s) => s.user);
+  const { getNodeLabel } = useNodeLabelById(Boolean(alertId));
+  const { users: assignableUsers, loading: usersLoading } = useAssignableUsers(Boolean(alertId));
   const [alert, setAlert] = useState<AlertDetail | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +128,7 @@ export default function MobileAlertDetailPage() {
 
   async function assignAlert() {
     if (!assignTo.trim()) {
-      setError("Indica el identificador de usuario (UUID)");
+      setError("Seleccione un responsable");
       return;
     }
     setBusy(true);
@@ -154,7 +158,9 @@ export default function MobileAlertDetailPage() {
           <p className="mt-2 text-slate-400">
             {labelSensorType(alert.sensorType)}: {String(alert.triggeredValue ?? "—")}
           </p>
-          <p className="mt-1 text-xs text-slate-600">Nodo: {alert.nodeId}</p>
+          <p className="mt-1 text-xs text-slate-500" title={alert.nodeId}>
+            Nodo: {getNodeLabel(alert.nodeId)}
+          </p>
 
           <div className="mt-4 space-y-3 border-t border-slate-800 pt-4">
             <label className="block text-xs text-slate-500">Notas (opcional)</label>
@@ -174,12 +180,20 @@ export default function MobileAlertDetailPage() {
             </button>
             {canManage ? (
               <div className="space-y-2">
-                <input
+                <label className="block text-xs text-slate-500">Asignar a</label>
+                <select
                   value={assignTo}
                   onChange={(e) => setAssignTo(e.target.value)}
-                  placeholder="UUID usuario (asignar)"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs"
-                />
+                  disabled={usersLoading || busy}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-100"
+                >
+                  <option value="">Seleccionar usuario…</option>
+                  {assignableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {labelAssignableUser(u)}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   disabled={busy}

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PermissionList } from "@/components/profile/PermissionList";
 import { mapUserResourceToSession } from "@/lib/auth/map-user";
 import { effectivePermissions, type PermissionCode } from "@/lib/auth/permissions";
+import { useTailingDamOptions } from "@/hooks/useTailingDamOptions";
 import { ApiError, apiJson } from "@/lib/api/http";
 import { labelRole } from "@/lib/ui/labels";
 import { useSessionStore } from "@/stores/useSessionStore";
@@ -96,6 +97,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export default function ProfilePage() {
+  const { getTailingDamLabel } = useTailingDamOptions(true);
   const sessionUser = useSessionStore((s) => s.user);
   const setUser = useSessionStore((s) => s.setUser);
 
@@ -258,8 +260,8 @@ export default function ProfilePage() {
             {dams.length > 0 ? (
               <ul className="mt-3 space-y-1 border-t border-white/8 pt-3">
                 {dams.map((id) => (
-                  <li key={id} className="truncate font-mono text-[11px] text-slate-500" title={id}>
-                    {shortId(id)}
+                  <li key={id} className="truncate text-[11px] text-slate-400" title={id}>
+                    {getTailingDamLabel(id)}
                   </li>
                 ))}
               </ul>

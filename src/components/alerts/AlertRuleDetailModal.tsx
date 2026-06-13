@@ -2,9 +2,9 @@
 
 import { Modal } from "@/components/ui/Modal";
 import {
+  formatThresholdCondition,
   labelAlertSeverity,
   labelNotifyChannel,
-  labelNumericOperator,
   labelSensorType,
 } from "@/lib/ui/labels";
 
@@ -53,13 +53,11 @@ export function AlertRuleDetailModal({ rule, open, onClose, onDelete, deleteBusy
           <dd className="mt-1 text-slate-200">{labelSensorType(rule.sensorType)}</dd>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Condición</dt>
-            <dd className="mt-1 text-slate-200">{labelNumericOperator(rule.operator)}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Valor umbral</dt>
-            <dd className="mt-1 font-mono text-slate-200">{String(rule.thresholdValue)}</dd>
+          <div className="sm:col-span-2">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Condición de umbral</dt>
+            <dd className="mt-1 text-slate-200">
+              {formatThresholdCondition(rule.operator, rule.thresholdValue, rule.sensorType)}
+            </dd>
           </div>
         </div>
         <div>

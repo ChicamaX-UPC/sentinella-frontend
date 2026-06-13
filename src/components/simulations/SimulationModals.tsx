@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { useTailingDamOptions } from "@/hooks/useTailingDamOptions";
 import { ApiError, apiJson } from "@/lib/api/http";
 import {
   SIMULATION_TYPES,
@@ -27,6 +28,7 @@ type NewProps = {
 
 export function NewSimulationModal({ open, onClose, onCreated }: NewProps) {
   const user = useSessionStore((s) => s.user);
+  const { options: tailingDamOptions } = useTailingDamOptions(open);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
@@ -120,13 +122,29 @@ export function NewSimulationModal({ open, onClose, onCreated }: NewProps) {
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-500">Tranque (UUID)</label>
-          <input
-            required
-            value={tailingDamId}
-            onChange={(e) => setTailingDamId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
-          />
+          <label className="text-xs text-slate-500">Tranque</label>
+          {tailingDamOptions.length > 0 ? (
+            <select
+              required
+              value={tailingDamId}
+              onChange={(e) => setTailingDamId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+            >
+              <option value="">Seleccionar tranque…</option>
+              {tailingDamOptions.map((dam) => (
+                <option key={dam.id} value={dam.id}>
+                  {dam.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              required
+              value={tailingDamId}
+              onChange={(e) => setTailingDamId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100"
+            />
+          )}
         </div>
         <div>
           <label className="text-xs text-slate-500">Parámetros (JSON)</label>

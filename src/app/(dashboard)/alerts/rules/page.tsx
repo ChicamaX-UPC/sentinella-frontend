@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertRuleDetailModal } from "@/components/alerts/AlertRuleDetailModal";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { formatNodeOptionLabel, useSensorNodeOptions } from "@/hooks/useSensorNodeOptions";
+import { useNodeLabelById } from "@/hooks/useNodeLabelById";
 import { ApiError, apiFetch, apiJson, withQuery } from "@/lib/api/http";
 import type { PageResponse } from "@/lib/api/page";
 import {
@@ -17,6 +18,8 @@ import {
   labelNotifyChannel,
   labelNumericOperator,
   labelSensorType,
+  formatThresholdCondition,
+  sensorTypeUnit,
   type AlertSeverityCode,
   type NotifyChannel,
   type NumericOperator,
@@ -40,13 +43,7 @@ const field =
 
 export default function AlertRulesPage() {
   const { nodes: nodeOptions, loading: nodesLoading } = useSensorNodeOptions(true);
-  const nodeLabelById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const n of nodeOptions) {
-      m.set(n.id, formatNodeOptionLabel(n));
-    }
-    return m;
-  }, [nodeOptions]);
+  const { nodeLabelById } = useNodeLabelById(true);
 
   const [rules, setRules] = useState<Rule[]>([]);
   const [page, setPage] = useState(0);
@@ -208,8 +205,8 @@ export default function AlertRulesPage() {
                     </p>
                   </td>
                   <td className="px-4 py-3 text-slate-300">{labelSensorType(r.sensorType)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                    {labelNumericOperator(r.operator)} {String(r.thresholdValue)}
+                  <td className="px-4 py-3 text-sm text-slate-400">
+                    {formatThresholdCondition(r.operator, r.thresholdValue, r.sensorType)}
                   </td>
                   <td className="px-4 py-3 text-accent/90">{labelAlertSeverity(r.severity)}</td>
                   <td className="px-4 py-3 text-right">
@@ -240,8 +237,8 @@ export default function AlertRulesPage() {
           {rules.map((r) => (
             <li key={r.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-sm font-medium text-slate-100">{nodeLabelById.get(r.nodeId) ?? r.nodeId}</p>
-              <p className="mt-1 text-xs text-slate-400">
-                {labelSensorType(r.sensorType)} · {labelNumericOperator(r.operator)} {String(r.thresholdValue)} →{" "}
+              <p className="mt-1 text-sm text-slate-400">
+                {labelSensorType(r.sensorType)} · {formatThresholdCondition(r.operator, r.thresholdValue, r.sensorType)} →{" "}
                 {labelAlertSeverity(r.severity)}
               </p>
               <div className="mt-2 flex gap-3">
@@ -341,15 +338,22 @@ export default function AlertRulesPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-500">Umbral</label>
-              <input
-                required
-                type="number"
-                step="any"
-                value={form.thresholdValue}
-                onChange={(e) => setForm((f) => ({ ...f, thresholdValue: e.target.value }))}
-                className={field}
-              />
+              <label className="text-xs text-slate-500">
+                Umbral{sensorTypeUnit(form.sensorType) ? ` (${sensorTypeUnit(form.sensorType)})` : ""}
+              </label>
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  required
+                  type="number"
+                  step="any"
+                  value={form.thresholdValue}
+                  onChange={(e) => setForm((f) => ({ ...f, thresholdValue: e.target.value }))}
+                  className={`${field} flex-1`}
+                />
+                {sensorTypeUnit(form.sensorType) ? (
+                  <span className="shrink-0 text-sm font-medium text-slate-400">{sensorTypeUnit(form.sensorType)}</span>
+                ) : null}
+              </div>
             </div>
           </div>
           <div>

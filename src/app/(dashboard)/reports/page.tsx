@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useTailingDamOptions } from "@/hooks/useTailingDamOptions";
 import { dayInputToRangeEndIso, dayInputToRangeStartIso } from "@/lib/dates";
 import { ApiError, apiFetch, apiJson, withQuery } from "@/lib/api/http";
 import { labelReportFormat } from "@/lib/ui/labels";
@@ -30,6 +31,7 @@ const TYPE_LABEL: Record<(typeof TYPES)[number], string> = {
 
 export default function ReportsPage() {
   const user = useSessionStore((s) => s.user);
+  const { options: tailingDamOptions, getTailingDamLabel } = useTailingDamOptions(true);
   const [reports, setReports] = useState<Report[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -130,13 +132,28 @@ export default function ReportsPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Parámetros del informe</p>
             <form onSubmit={(ev) => void generate(ev)} className="mt-4 space-y-4 text-sm">
               <div>
-                <label className="text-xs text-slate-500">Tranque (UUID del tranque asignado)</label>
-                <input
-                  value={tailingDamId}
-                  onChange={(e) => setTailingDamId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100 outline-none focus:border-accent/50"
-                  placeholder="Opcional — filtra por tranque"
-                />
+                <label className="text-xs text-slate-500">Tranque</label>
+                {tailingDamOptions.length > 0 ? (
+                  <select
+                    value={tailingDamId}
+                    onChange={(e) => setTailingDamId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100 outline-none focus:border-accent/50"
+                  >
+                    <option value="">Todos los tranques asignados</option>
+                    {tailingDamOptions.map((dam) => (
+                      <option key={dam.id} value={dam.id}>
+                        {dam.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={tailingDamId}
+                    onChange={(e) => setTailingDamId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/15 bg-app px-3 py-2 text-slate-100 outline-none focus:border-accent/50"
+                    placeholder="Opcional — filtra por tranque"
+                  />
+                )}
               </div>
               <div>
                 <label className="text-xs text-slate-500">Tipo de reporte</label>
@@ -234,6 +251,12 @@ export default function ReportsPage() {
                     <p className="text-slate-200">{TYPE_LABEL[r.type as keyof typeof TYPE_LABEL] ?? r.type}</p>
                     <p className="font-mono text-[11px] text-slate-500">
                       {labelReportFormat(r.format)} · {r.from?.slice(0, 10)} … {r.to?.slice(0, 10)}
+                      {r.tailingDamId ? (
+                        <>
+                          {" "}
+                          · {getTailingDamLabel(r.tailingDamId)}
+                        </>
+                      ) : null}
                     </p>
                   </div>
                   <button

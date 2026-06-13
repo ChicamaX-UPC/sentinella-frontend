@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { countMobilePendingTotal } from "@/lib/mobile/pendingCounts";
 import { flushMutationOutbox } from "@/lib/mobile/outbox";
 
@@ -44,13 +45,15 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   }, [online]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-app text-foreground">
       <ServiceWorkerRegister />
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-accent/30 bg-slate-950/95 px-4 py-3">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-app/95 px-4 py-3 backdrop-blur-md">
         <Link href="/mobile" className="text-sm font-semibold text-accent">
           Sentinella
         </Link>
-        <div className="flex flex-col items-end gap-0.5 text-xs">
+        <div className="flex items-center gap-3">
+          <ThemeToggle className="theme-toggle-btn h-9 w-9" iconClassName="h-4 w-4" />
+          <div className="flex flex-col items-end gap-0.5 text-xs">
           <span className={online ? "text-emerald-400" : "text-amber-400"}>
             {online ? "🟢 En línea" : "🟡 Offline"}
           </span>
@@ -62,6 +65,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-slate-500 hover:text-slate-300">
             Escritorio
           </Link>
+          </div>
         </div>
       </header>
       <div className="p-4">{children}</div>

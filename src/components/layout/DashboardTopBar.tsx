@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useSessionStore } from "@/stores/useSessionStore";
 
 function UserIcon({ className }: { className?: string }) {
@@ -31,7 +32,8 @@ export function DashboardTopBar() {
         </span>
       </div>
 
-      <div className="ml-auto flex min-w-0 items-center">
+      <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+        <ThemeToggle className="theme-toggle-btn" />
         <Link
           href="/profile"
           title={user?.email ? `${displayName} · ${user.email}` : displayName}

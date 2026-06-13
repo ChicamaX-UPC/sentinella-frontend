@@ -16,6 +16,7 @@ import {
   labelSensorType,
   type SensorTypeCode,
 } from "@/lib/ui/labels";
+import { useNodeLabelById } from "@/hooks/useNodeLabelById";
 import { useAlertStore, type AlertBrief } from "@/stores/useAlertStore";
 
 function severityTone(s?: string): string {
@@ -57,6 +58,7 @@ function AlertsPageContent() {
   const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const wsItems = useAlertStore((s) => s.items);
+  const { getNodeLabel } = useNodeLabelById(true);
   const [crit, setCrit] = useState(true);
   const [warn, setWarn] = useState(true);
   const [info, setInfo] = useState(true);
@@ -281,7 +283,9 @@ function AlertsPageContent() {
                         <span className="font-mono">{shortId(a.id)}</span>
                       </p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-400">{a.nodeId ? shortId(a.nodeId) : "—"}</td>
+                    <td className="px-4 py-3 text-xs text-slate-300" title={a.nodeId ?? undefined}>
+                      {getNodeLabel(a.nodeId)}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${severityTone(a.severity)}`}

@@ -1,8 +1,12 @@
 import { AuthMarketingPanel } from "@/components/auth/AuthMarketingPanel";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="auth-scheme min-h-dvh min-h-screen bg-auth-bg text-slate-100">
+    <div className="auth-scheme relative min-h-dvh min-h-screen bg-auth-bg text-slate-100">
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <ThemeToggle className="theme-toggle-btn" />
+      </div>
       <div className="grid min-h-screen lg:grid-cols-[1.2fr_0.8fr]">
         <AuthMarketingPanel />
         <div className="auth-panel relative flex min-h-[50vh] flex-col items-center justify-center px-6 py-10 sm:px-10 lg:min-h-screen lg:px-10 lg:py-12 xl:px-12">

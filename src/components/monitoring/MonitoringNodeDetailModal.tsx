@@ -91,14 +91,15 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
       {node ? (
         <div className="space-y-3 text-sm text-slate-300">
           <div className="grid gap-2 rounded-lg border border-white/10 bg-app/40 px-3 py-2 text-xs">
-            <p>
-              <span className="text-slate-500">ID:</span> <span className="font-mono">{node.id}</span>
-            </p>
             {node.externalId ? (
               <p>
-                <span className="text-slate-500">Ref. externa:</span> {node.externalId}
+                <span className="text-slate-500">Referencia:</span> {node.externalId}
               </p>
             ) : null}
+            <p>
+              <span className="text-slate-500">Identificador interno:</span>{" "}
+              <span className="font-mono">{node.id}</span>
+            </p>
             {node.sensorType ? (
               <p>
                 <span className="text-slate-500">Sensor:</span> {labelSensorType(node.sensorType)}

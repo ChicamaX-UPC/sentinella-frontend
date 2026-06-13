@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { labelAssignableUser, useAssignableUsers } from "@/hooks/useAssignableUsers";
+import { useNodeLabelById } from "@/hooks/useNodeLabelById";
 import { ApiError, apiJson } from "@/lib/api/http";
 import {
   labelAlertSeverity,
@@ -54,6 +55,7 @@ function severityBadge(s?: string): string {
 
 export function AlertDetailModal({ alertId, open, onClose, onUpdated }: Props) {
   const { users: assignableUsers, loading: usersLoading } = useAssignableUsers(open);
+  const { getNodeLabel } = useNodeLabelById(open);
   const [alert, setAlert] = useState<AlertDetail | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +150,10 @@ export function AlertDetailModal({ alertId, open, onClose, onUpdated }: Props) {
           <dl className="grid gap-3 rounded-lg border border-white/10 bg-app/50 p-3 text-xs sm:grid-cols-2">
             <div>
               <dt className="text-slate-500">Nodo</dt>
-              <dd className="mt-0.5 font-mono text-slate-200">{alert.nodeId}</dd>
+              <dd className="mt-0.5 text-slate-200">{getNodeLabel(alert.nodeId)}</dd>
+              <dd className="mt-0.5 break-all font-mono text-[11px] text-slate-500" title={alert.nodeId}>
+                {alert.nodeId}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">Sensor</dt>

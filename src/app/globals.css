@@ -125,6 +125,31 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Escala tipográfica accesible (~10% más grande, efecto zoom suave) */
+html {
+  font-size: 110%;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--text-light) 6%, transparent);
+  color: var(--text-light);
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* Scroll funcional sin barra visible */
 .scrollbar-none {
   scrollbar-width: none;
@@ -213,6 +238,150 @@ html:has(.auth-scheme) body {
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.12);
   --ring: rgba(255, 140, 66, 0.45);
+}
+
+/* Tema claro — blanco y naranja (marca Sentinella) */
+html.light {
+  color-scheme: light;
+
+  --accent: #ff8c42;
+  --accent-hover: #e6732a;
+  --accent-soft: rgba(255, 140, 66, 0.12);
+  --accent-border: rgba(255, 140, 66, 0.45);
+  --accent-blue: #2563eb;
+
+  --bg-navy: #ffffff;
+  --bg-navy-2: #f8fafc;
+  --bg-black: #f1f5f9;
+  --bg-card-dark: #ffffff;
+  --bg-card-stat: #f8fafc;
+
+  --text-light: #0f172a;
+  --text-muted-dark: #475569;
+
+  --input-bg: #ffffff;
+  --input-bg-focus: #f8fafc;
+
+  --auth-bg: #ffffff;
+  --auth-input-bg: #f8fafc;
+  --auth-input-bg-focus: #ffffff;
+
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #ff8c42;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --border: rgba(15, 23, 42, 0.12);
+  --input: rgba(15, 23, 42, 0.1);
+  --ring: rgba(255, 140, 66, 0.45);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1e293b;
+  --sidebar-primary: #ff8c42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 140, 66, 0.12);
+  --sidebar-accent-foreground: #c2410c;
+  --sidebar-border: rgba(15, 23, 42, 0.1);
+  --sidebar-ring: rgba(255, 140, 66, 0.45);
+}
+
+html.light body {
+  background: var(--bg-navy);
+  color: var(--text-light);
+}
+
+html.light .auth-scheme {
+  --auth-bg: #ffffff;
+  --auth-input-bg: #f8fafc;
+  --auth-input-bg-focus: #ffffff;
+  --primary-foreground: #ffffff;
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+html.light .auth-scheme input:-webkit-autofill,
+html.light .auth-scheme input:-webkit-autofill:hover,
+html.light .auth-scheme input:-webkit-autofill:focus,
+html.light .auth-scheme input:-webkit-autofill:active,
+html.light .auth-scheme textarea:-webkit-autofill,
+html.light .auth-scheme select:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+  box-shadow: 0 0 0 1000px var(--auth-input-bg) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset;
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
+/* Ajustes de contraste en tema claro para utilidades slate/white frecuentes */
+html.light .text-white,
+html.light .text-slate-50,
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-500,
+html.light .text-slate-600 {
+  color: #64748b !important;
+}
+
+html.light [class*="border-white/"] {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html.light [class*="bg-white/"] {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light [class*="bg-black/"] {
+  background-color: rgba(15, 23, 42, 0.03) !important;
+}
+
+html.light [class*="bg-slate-9"] {
+  background-color: #f8fafc !important;
+}
+
+html.light [class*="bg-slate-8"] {
+  background-color: #f1f5f9 !important;
+}
+
+html.light [class*="bg-slate-7"] {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .nodes-map-scope .maplibregl-popup-content > div {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.light .nodes-map-scope .text-muted-foreground {
+  color: #64748b !important;
+}
+
+html.light .nodes-map-scope .border-border.bg-background {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #1e293b !important;
 }
 
 @layer base {

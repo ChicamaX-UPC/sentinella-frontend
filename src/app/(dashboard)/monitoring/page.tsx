@@ -213,7 +213,9 @@ function MonitoringPageContent() {
             className="rounded-xl border border-white/10 bg-surface-elevated/50 p-4 text-left transition-colors hover:border-accent/40 hover:bg-surface-elevated/80"
           >
             <p className="font-semibold text-slate-100">{n.name}</p>
-            <p className="mt-1 font-mono text-[11px] text-slate-500">{n.externalId ?? `${n.id.slice(0, 8)}…`}</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {n.externalId ?? (n.sensorType ? labelSensorType(n.sensorType) : "Sin referencia externa")}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               {n.sensorType ? (
                 <span className="rounded-md bg-white/5 px-2 py-0.5 text-slate-300">{labelSensorType(n.sensorType)}</span>
