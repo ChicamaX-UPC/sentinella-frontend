@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Playwright → PNG para Figma (local)
 /figma-export/
+
+# AI / agentes (no commitear)
+CLAUDE.md
+AGENTS.md
+.claude/
+.cursor/
