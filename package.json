@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:remote": "next dev --hostname 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start",
+    "start:remote": "next start --hostname 0.0.0.0 -p 3000",
     "lint": "eslint",
     "test": "vitest run",
     "auth-hero:alpha": "node scripts/knockout-auth-hero-bg.mjs"
