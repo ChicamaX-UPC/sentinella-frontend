@@ -1,6 +1,18 @@
 import * as THREE from "three";
 import { useSensorStore } from "@/stores/useSensorStore";
 import { SimulationType, TwinMode } from "@/stores/useSimulationStore";
+import {
+  DESIGN_FILL_RATE_M3_DAY,
+  DESIGN_RAIN_MM_H,
+  OVERFLOW_SIM_MAX_M,
+  RELAVE_MAX_OPERATING_M,
+  RELAVE_MIN_M,
+  computeSafetyFactor,
+  levelRiseFromFillRate,
+  levelRiseFromRain,
+  saturationFromLevel,
+} from "@/components/DigitalTwin/constants";
+import { SENSOR_POSITIONS } from "@/components/DigitalTwin/sensorPositions";
 
 export type SimulationInput = {
   mode: TwinMode;
@@ -22,6 +34,7 @@ export type SimulationVisualState = {
   seepageFlow: number;
   seepageLocation: string;
   isHeavyRain: boolean;
+  piezometricPressure: number;
 };
 
 export type TwinMetrics = {
@@ -30,21 +43,22 @@ export type TwinMetrics = {
   rainIntensity: number;
   safetyFactor: number;
   seepageFlow: number;
+  piezometricPressure: number;
+  spillSeverity: number;
+  spillM: number;
 };
 
 const DEFAULT_STATE: SimulationVisualState = {
   relaveLevel: 780,
-  fillRate: 60,
+  fillRate: DESIGN_FILL_RATE_M3_DAY,
   rainIntensity: 0,
   saturation: 0.3,
   safetyFactor: 1.6,
   seepageFlow: 0,
   seepageLocation: "Base Central (PI-03)",
   isHeavyRain: false,
+  piezometricPressure: 0.35,
 };
-
-const RELAVE_MIN = 774;
-const RELAVE_SIM_MAX = 787.5;
 
 function numberParam(params: Record<string, number | string>, key: string, fallback: number): number {
   const value = params[key];
@@ -56,26 +70,39 @@ function stringParam(params: Record<string, number | string>, key: string, fallb
   return typeof value === "string" ? value : fallback;
 }
 
-function estimateRealLevel(): number {
+function readingByExternalId(externalId: string): number | undefined {
   const lastByNode = useSensorStore.getState().lastByNode;
-  const key = Object.keys(lastByNode).find((nodeId) => {
-    const reading = lastByNode[nodeId];
-    return String(reading?.type ?? "").toLowerCase().includes("water");
-  });
-  const value = key ? lastByNode[key]?.value : undefined;
-  if (typeof value === "number") {
-    return THREE.MathUtils.clamp(value, RELAVE_MIN, RELAVE_SIM_MAX);
+  const direct = lastByNode[externalId]?.value;
+  if (typeof direct === "number") {
+    return direct;
   }
-  return 780;
+  const match = Object.values(lastByNode).find((r) => r.nodeId === externalId);
+  return typeof match?.value === "number" ? match.value : undefined;
 }
 
-function computeSafetyFactor(relaveLevel: number, saturation: number, seismic: number, seepageFlow: number): number {
-  const fsRaw = 1.85 - saturation * 0.52 - seismic * 1.9 - (relaveLevel - 780) * 0.03 - seepageFlow * 0.008;
-  return THREE.MathUtils.clamp(fsRaw, 0.8, 2.1);
+function estimateRealSensors(): { level: number; rain: number; saturation: number } {
+  const nw = readingByExternalId("NW-01");
+  const pv = readingByExternalId("PV-01");
+  const piReadings = SENSOR_POSITIONS.filter((p) => p.type === "pressure")
+    .map((p) => readingByExternalId(p.nodeId))
+    .filter((v): v is number => typeof v === "number");
+  const avgPressure = piReadings.length
+    ? piReadings.reduce((a, b) => a + b, 0) / piReadings.length
+    : undefined;
+
+  const level = typeof nw === "number" ? THREE.MathUtils.clamp(nw, RELAVE_MIN_M, OVERFLOW_SIM_MAX_M) : 780;
+  const rain = typeof pv === "number" ? THREE.MathUtils.clamp(pv, 0, 90) : 0;
+  const saturation =
+    typeof avgPressure === "number"
+      ? THREE.MathUtils.clamp(avgPressure / 100, 0, 1)
+      : saturationFromLevel(level, rain, 0);
+
+  return { level, rain, saturation };
 }
 
 export function createSimulationEffects() {
   let visualState: SimulationVisualState = { ...DEFAULT_STATE };
+  let simLevel = 780;
 
   return {
     update(input: SimulationInput, delta: number): SimulationVisualState {
@@ -84,54 +111,72 @@ export function createSimulationEffects() {
         input.combinedScenarios.forEach((scenario) => activeScenarios.add(scenario));
       }
 
-      const fillRate = numberParam(input.params, "fillRate", 60);
+      const fillRate = numberParam(input.params, "fillRate", DESIGN_FILL_RATE_M3_DAY);
       const relaveLevelParam = numberParam(input.params, "relaveLevel", 780);
       const rainIntensityParam = numberParam(input.params, "rainIntensity", 20);
       const seismic = numberParam(input.params, "seismic", 0);
       const seepageFlowParam = numberParam(input.params, "seepageFlow", 0);
       const seepageLocation = stringParam(input.params, "seepageLocation", "Base Central (PI-03)");
 
-      const baseRealLevel = estimateRealLevel();
-      let targetRelaveLevel = input.mode === "REAL" ? baseRealLevel : relaveLevelParam;
-      let targetRainIntensity = 0;
+      const real = estimateRealSensors();
+      let targetRelaveLevel = input.mode === "REAL" ? real.level : relaveLevelParam;
+      let targetRainIntensity = input.mode === "REAL" ? real.rain : 0;
       let targetSeepageFlow = input.mode === "SIMULATION" ? seepageFlowParam : 0;
 
+      const previewStatic = input.mode === "SIMULATION" && !input.running;
+      if (previewStatic) {
+        targetRelaveLevel = relaveLevelParam;
+        if (activeScenarios.has("HEAVY_RAIN")) {
+          targetRainIntensity = rainIntensityParam;
+        }
+        if (activeScenarios.has("SEEPAGE_DETECTION")) {
+          targetSeepageFlow = seepageFlowParam;
+        }
+      }
+
       if (input.mode === "SIMULATION" && input.running) {
+        simLevel = relaveLevelParam;
+        if (activeScenarios.has("OVERFLOW_DEMO") || input.simulationType === "OVERFLOW_DEMO") {
+          simLevel = Math.max(simLevel, relaveLevelParam);
+          simLevel += levelRiseFromFillRate(fillRate, delta, input.playbackSpeed) * 1.2;
+        }
         if (activeScenarios.has("WATER_LEVEL_RISE")) {
-          targetRelaveLevel = THREE.MathUtils.clamp(
-            relaveLevelParam + (fillRate / 220) * 5.8 + Math.min(4.2, input.elapsed * 0.017 * (fillRate / 55)),
-            RELAVE_MIN,
-            RELAVE_SIM_MAX
-          );
+          simLevel += levelRiseFromFillRate(fillRate, delta, input.playbackSpeed);
         }
         if (activeScenarios.has("HEAVY_RAIN")) {
           targetRainIntensity = Math.max(targetRainIntensity, rainIntensityParam);
-          targetRelaveLevel = THREE.MathUtils.clamp(
-            targetRelaveLevel + (rainIntensityParam / 90) * 2.2 + Math.sin(input.elapsed * 0.055) * 0.18,
-            RELAVE_MIN,
-            RELAVE_SIM_MAX
-          );
+          simLevel += levelRiseFromRain(rainIntensityParam, delta, input.playbackSpeed);
+          simLevel += Math.sin(input.elapsed * 0.055) * 0.002;
+        }
+        if (activeScenarios.has("DIKE_SATURATION")) {
+          simLevel = Math.max(simLevel, relaveLevelParam);
+        }
+        if (activeScenarios.has("SAFETY_FACTOR")) {
+          simLevel += seismic * 0.004 * delta * input.playbackSpeed;
         }
         if (activeScenarios.has("SEEPAGE_DETECTION")) {
           targetSeepageFlow = Math.max(targetSeepageFlow, seepageFlowParam);
         }
-        if (activeScenarios.has("DIKE_SATURATION")) {
-          targetRelaveLevel = THREE.MathUtils.clamp(targetRelaveLevel + 0.4, RELAVE_MIN, RELAVE_SIM_MAX);
-        }
-        if (activeScenarios.has("SAFETY_FACTOR")) {
-          targetRelaveLevel = THREE.MathUtils.clamp(targetRelaveLevel + seismic * 2.4, RELAVE_MIN, RELAVE_SIM_MAX);
-        }
+        targetRelaveLevel = THREE.MathUtils.clamp(simLevel, RELAVE_MIN_M, OVERFLOW_SIM_MAX_M);
       }
 
-      const targetSaturation = THREE.MathUtils.clamp(
-        (targetRelaveLevel - RELAVE_MIN) / (RELAVE_SIM_MAX - RELAVE_MIN) * 0.74 + targetRainIntensity / 90 * 0.35 + targetSeepageFlow / 50 * 0.22,
-        0,
-        1
-      );
-      const seismicBoost = activeScenarios.has("SAFETY_FACTOR") ? seismic : seismic * 0.4;
-      const targetSafetyFactor = computeSafetyFactor(targetRelaveLevel, targetSaturation, seismicBoost, targetSeepageFlow);
+      const targetSaturation =
+        input.mode === "REAL"
+          ? real.saturation
+          : activeScenarios.has("DIKE_SATURATION")
+            ? saturationFromLevel(targetRelaveLevel, targetRainIntensity, targetSeepageFlow) * 1.08
+            : saturationFromLevel(targetRelaveLevel, targetRainIntensity, targetSeepageFlow);
 
-      const alpha = THREE.MathUtils.clamp(delta * (input.playbackSpeed === 1 ? 1.4 : 2.2), 0.03, 0.28);
+      const seismicBoost = activeScenarios.has("SAFETY_FACTOR") ? seismic : seismic * 0.4;
+      const targetSafetyFactor = computeSafetyFactor(
+        targetRelaveLevel,
+        targetSaturation,
+        seismicBoost,
+        targetSeepageFlow
+      );
+      const targetPiezometric = THREE.MathUtils.clamp(targetSaturation * 0.92 + targetSeepageFlow / 80, 0, 1);
+
+      const alpha = THREE.MathUtils.clamp(delta * (input.playbackSpeed === 1 ? 1.6 : 2.4), 0.04, 0.32);
 
       visualState = {
         relaveLevel: THREE.MathUtils.lerp(visualState.relaveLevel, targetRelaveLevel, alpha),
@@ -141,21 +186,29 @@ export function createSimulationEffects() {
         safetyFactor: THREE.MathUtils.lerp(visualState.safetyFactor, targetSafetyFactor, alpha),
         seepageFlow: THREE.MathUtils.lerp(visualState.seepageFlow, targetSeepageFlow, alpha),
         seepageLocation,
-        isHeavyRain: activeScenarios.has("HEAVY_RAIN") && input.mode === "SIMULATION" && input.running,
+        isHeavyRain:
+          activeScenarios.has("HEAVY_RAIN") &&
+          input.mode === "SIMULATION" &&
+          (input.running || rainIntensityParam > 0),
+        piezometricPressure: THREE.MathUtils.lerp(visualState.piezometricPressure, targetPiezometric, alpha),
       };
 
       return visualState;
     },
     reset() {
       visualState = { ...DEFAULT_STATE };
+      simLevel = 780;
     },
-    buildMetrics(freeboard: number): TwinMetrics {
+    buildMetrics(water: { freeboard: number; spillSeverity: number; spillM: number }): TwinMetrics {
       return {
         relaveLevel: visualState.relaveLevel,
-        freeboard,
+        freeboard: water.freeboard,
         rainIntensity: visualState.rainIntensity,
         safetyFactor: visualState.safetyFactor,
         seepageFlow: visualState.seepageFlow,
+        piezometricPressure: visualState.piezometricPressure,
+        spillSeverity: water.spillSeverity,
+        spillM: water.spillM,
       };
     },
   };

@@ -11,7 +11,7 @@ export type WeatherSystem = {
   dispose: () => void;
 };
 
-const MAX_DROPS = 1800;
+const MAX_DROPS = 1000;
 
 export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
   const rainGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6);
@@ -40,13 +40,19 @@ export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
 
   // Cielo diurno base (coherente con TwinCanvas); la lluvia lo oscurece poco a poco.
   const baseBackground = new THREE.Color(0xbdd6e8);
-  scene.background = baseBackground.clone();
+  const overcast = new THREE.Color(0x6b7c90);
+  const nightish = new THREE.Color(0x1e2a3a);
+  const lerpedBg = baseBackground.clone();
+  scene.background = lerpedBg.clone();
   // Niebla ligera: densidad baja; sube solo con lluvia fuerte.
   scene.fog = new THREE.FogExp2(0xc9dbe8, 0.00018);
 
   return {
     update: (state, delta, speed) => {
-      const intensity = state.running ? THREE.MathUtils.clamp(state.rainIntensity, 0, 90) : 0;
+      const intensity =
+        state.running || state.rainIntensity > 0
+          ? THREE.MathUtils.clamp(state.rainIntensity, 0, 90)
+          : 0;
       const normalized = intensity / 90;
 
       visibleDrops = Math.floor(MAX_DROPS * normalized);
@@ -69,18 +75,15 @@ export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
       }
       rain.instanceMatrix.needsUpdate = true;
 
-      const overcast = new THREE.Color(0x6b7c90);
-      const nightish = new THREE.Color(0x1e2a3a);
-      const lerped = baseBackground
-        .clone()
+      lerpedBg
+        .copy(baseBackground)
         .lerp(overcast, normalized * 0.5)
         .lerp(nightish, Math.max(0, normalized - 0.5) * 0.4);
-
-      scene.background = lerped;
+      scene.background = lerpedBg;
 
       const fog = scene.fog as THREE.FogExp2 | null;
       if (fog) {
-        fog.color.copy(lerped);
+        fog.color.copy(lerpedBg);
         // Tormenta: algo mas densa, pero sin tapar los cerros.
         fog.density = 0.00018 + normalized * 0.00055;
       }

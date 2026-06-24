@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { sampleTerrainHeight } from "@/components/DigitalTwin/terrainHeight";
 
 export type TerrainVisualState = {
   showIsolines: boolean;
@@ -183,7 +184,7 @@ function createDirtTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasT
 }
 
 export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
-  const terrainGeometry = new THREE.PlaneGeometry(920, 920, 260, 260);
+  const terrainGeometry = new THREE.PlaneGeometry(920, 920, 140, 140);
   terrainGeometry.rotateX(-Math.PI / 2);
 
   const colors = new Float32Array((terrainGeometry.attributes.position.count ?? 0) * 3);
@@ -213,7 +214,7 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
     const dropY = dropOff * 0.32;
     
     const ridges = noise2d(x, z) * 20 + noise2d(x * 0.45, z * 0.45) * 30;
-    const mountainLift = THREE.MathUtils.smoothstep(dist, 150, 470) * 72;
+    const mountainLift = THREE.MathUtils.smoothstep(dist, 150, 470) * 88;
     
     // Base del vaso interno.
     const floorLift = THREE.MathUtils.smoothstep(protectedBasin, 0.35, 0.0) * (z < 130 ? 1.2 : 0);
@@ -244,16 +245,10 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   terrainGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   terrainGeometry.computeVertexNormals();
 
-  const textures = typeof document !== "undefined" ? createDirtTexture() : null;
-
   const terrainMaterial = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.92,
     metalness: 0.05,
-    map: textures?.map || null,
-    bumpMap: textures?.bumpMap || null,
-    bumpScale: 0.8,
-    roughnessMap: textures?.roughnessMap || null,
   });
   const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrain.receiveShadow = true;
@@ -264,11 +259,12 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   // de la planta, al fondo del tranque). Se construye con arcos reales y
   // se agrupa para un solo transform / dispose.
   // ------------------------------------------------------------------
+  // Campo deportivo lejano (contexto de campamento minero) — fuera del encuadre típico.
   const fieldGroup = new THREE.Group();
-  // Frente abierto, lejos del tranque y de la ruta de cámara típica.
-  const FIELD_POS = new THREE.Vector3(300, 4.6, 218);
+  const FIELD_POS = new THREE.Vector3(420, 4.6, 340);
   fieldGroup.position.copy(FIELD_POS);
   fieldGroup.rotation.y = 0.28;
+  fieldGroup.visible = false;
 
   // Base de pasto.
   const fieldWidth = 90;
@@ -281,19 +277,6 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   fieldBase.position.y = 0;
   fieldBase.receiveShadow = true;
   fieldGroup.add(fieldBase);
-
-  // Franjas de corte (alternadas) para que se vea cancha real.
-  const stripeMat = new THREE.MeshStandardMaterial({ color: 0x258033, roughness: 0.9 });
-  for (let s = 0; s < 8; s += 1) {
-    const stripe = new THREE.Mesh(
-      new THREE.PlaneGeometry(fieldLength, fieldWidth / 8 - 0.4),
-      stripeMat
-    );
-    stripe.rotation.x = -Math.PI / 2;
-    stripe.position.set(0, 0.02, -fieldWidth / 2 + (s + 0.5) * (fieldWidth / 8));
-    if (s % 2 === 0) stripe.visible = false;
-    fieldGroup.add(stripe);
-  }
 
   // Líneas blancas.
   const lineMat = new THREE.LineBasicMaterial({ color: 0xf8fafc });
@@ -501,13 +484,43 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   scene.add(plantGroup);
 
   const isolines = new THREE.Group();
-  const ringMaterial = new THREE.LineBasicMaterial({ color: 0xcfc3a0, transparent: true, opacity: 0.35 });
-  for (let radius = 85; radius <= 290; radius += 14) {
-    const ringGeometry = new THREE.RingGeometry(radius, radius + 0.2, 100);
-    const ring = new THREE.LineLoop(new THREE.EdgesGeometry(ringGeometry), ringMaterial);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -0.2 + (radius - 85) * 0.01;
-    isolines.add(ring);
+  const isolineMat = new THREE.LineBasicMaterial({ color: 0xcfc3a0, transparent: true, opacity: 0.42 });
+  const gridMin = -360;
+  const gridMax = 360;
+  const gridStep = 20;
+
+  for (let level = -5; level <= 72; level += 10) {
+    const points: THREE.Vector3[] = [];
+    for (let gz = gridMin; gz <= gridMax; gz += gridStep) {
+      let prevX = gridMin;
+      let prevH = sampleTerrainHeight(prevX, gz);
+      for (let gx = gridMin + gridStep; gx <= gridMax; gx += gridStep) {
+        const h = sampleTerrainHeight(gx, gz);
+        if ((prevH < level && h >= level) || (prevH >= level && h < level)) {
+          const t = (level - prevH) / (h - prevH || 1);
+          points.push(new THREE.Vector3(prevX + gridStep * t, level + 0.12, gz));
+        }
+        prevH = h;
+        prevX = gx;
+      }
+    }
+    for (let gx = gridMin; gx <= gridMax; gx += gridStep) {
+      let prevZ = gridMin;
+      let prevH = sampleTerrainHeight(gx, prevZ);
+      for (let gz = gridMin + gridStep; gz <= gridMax; gz += gridStep) {
+        const h = sampleTerrainHeight(gx, gz);
+        if ((prevH < level && h >= level) || (prevH >= level && h < level)) {
+          const t = (level - prevH) / (h - prevH || 1);
+          points.push(new THREE.Vector3(gx, level + 0.12, prevZ + gridStep * t));
+        }
+        prevH = h;
+        prevZ = gz;
+      }
+    }
+    if (points.length >= 2) {
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      isolines.add(new THREE.Line(geo, isolineMat.clone()));
+    }
   }
   isolines.visible = false;
   scene.add(isolines);
@@ -518,10 +531,6 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
       const wetness = THREE.MathUtils.clamp(state.rainIntensity / 100, 0, 0.45);
       terrainMaterial.roughness = 0.92 - wetness * 0.4;
       terrainMaterial.metalness = 0.05 + wetness * 0.1;
-      if (terrainMaterial.roughnessMap) {
-        // dampen the roughness map effect when wet
-        terrainMaterial.roughnessMap.offset.x += 0.001; // tiny animation? not needed for maps
-      }
     },
     dispose: () => {
       scene.remove(terrain);
@@ -532,7 +541,7 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
       scene.remove(isolines);
       terrainGeometry.dispose();
       terrainMaterial.dispose();
-      ringMaterial.dispose();
+      isolineMat.dispose();
       const freeBranch = (g: THREE.Object3D) => {
         g.traverse((obj) => {
           const m = obj as THREE.Mesh | THREE.Line | THREE.LineLoop;
@@ -548,10 +557,7 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
       freeBranch(peaksGroup);
       freeBranch(rocksGroup);
       freeBranch(plantGroup);
-      isolines.children.forEach((child) => {
-        const line = child as THREE.LineLoop;
-        line.geometry.dispose();
-      });
+      freeBranch(isolines);
     },
   };
 }

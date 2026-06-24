@@ -1,33 +1,16 @@
 import * as THREE from "three";
-import { getLakeShape } from "./DamGeometry";
-
-/**
- * Nivel msnm → altura de superficie en unidades de escena.
- * Corona del dique ~ Y 10.5 (TailingDam crown), cota corona 786 msnm.
- * Por encima de 786 se entra en fase de desborde (786–787.5).
- */
-const RELAVE_MIN = 774;
-const RELAVE_MAX = 787.5;
-const CROWN_LEVEL_M = 786;
-/** Centro del vaso (alineado con getDamCurve en DamGeometry). */
-const BOWL_CX = 6;
-const BOWL_CZ = 22;
-/** Y del piso del vaso (coincide con el liner / piso elevado del terreno). */
-const BASIN_FLOOR_Y = 0.4;
-
-function relaveMsnmToSurfaceY(levelM: number): number {
-  const L = THREE.MathUtils.clamp(levelM, RELAVE_MIN, RELAVE_MAX);
-  if (L <= 780) {
-    return THREE.MathUtils.lerp(1.0, 5.0, (L - 774) / 6);
-  }
-  if (L <= 785) {
-    return THREE.MathUtils.lerp(5.0, 9.2, (L - 780) / 5);
-  }
-  if (L <= CROWN_LEVEL_M) {
-    return THREE.MathUtils.lerp(9.2, 10.4, (L - 785) / (CROWN_LEVEL_M - 785));
-  }
-  return THREE.MathUtils.lerp(10.4, 11.2, (L - CROWN_LEVEL_M) / (RELAVE_MAX - CROWN_LEVEL_M));
-}
+import {
+  BASIN_FLOOR_Y,
+  BOWL_CX,
+  BOWL_CZ,
+  CROWN_ELEVATION_M,
+  OVERFLOW_SIM_MAX_M,
+  RELAVE_MIN_M,
+  relaveMsnmToSurfaceY,
+} from "@/components/DigitalTwin/constants";
+import { computeHydraulicAlert } from "./AlertSemantics";
+import { getLakeShape, getOverflowSpillShape } from "./DamGeometry";
+import { createTailingsWaterShaderBundle } from "./shaders/TailingsWaterShader";
 
 export type WaterPlaneVisualState = {
   relaveLevel: number;
@@ -39,6 +22,8 @@ export type WaterPlaneVisualState = {
 export type WaterPlaneMetrics = {
   relaveLevel: number;
   freeboard: number;
+  spillSeverity: number;
+  spillM: number;
 };
 
 export type WaterPlaneSystem = {
@@ -47,82 +32,90 @@ export type WaterPlaneSystem = {
   dispose: () => void;
 };
 
+const GEOMEMBRANE = 0x2c2c2c;
+
 export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number): WaterPlaneSystem {
   const lakeShape = getLakeShape();
+  const waterShader = createTailingsWaterShaderBundle();
 
-  // Liner (fondo del vaso): lámina oscura que se ve a través del agua semi-translúcida.
   const linerGeometry = new THREE.ShapeGeometry(lakeShape);
   linerGeometry.rotateX(-Math.PI / 2);
   const linerMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1a1512,
-    roughness: 0.95,
-    metalness: 0.02,
+    color: GEOMEMBRANE,
+    roughness: 0.92,
+    metalness: 0.03,
   });
   const liner = new THREE.Mesh(linerGeometry, linerMaterial);
   liner.position.y = BASIN_FLOOR_Y;
   liner.receiveShadow = true;
   scene.add(liner);
 
-  // Superficie del agua: única capa visible, con oleaje por desplazamiento de vértices.
-  const surfaceGeometry = new THREE.ShapeGeometry(lakeShape, 24);
+  let surfaceGeometry = new THREE.ShapeGeometry(lakeShape, 48);
   surfaceGeometry.rotateX(-Math.PI / 2);
   surfaceGeometry.computeVertexNormals();
 
-  // Agua de relave real: gris-pardo oscuro con leve reflejo metálico,
-  // casi opaco porque el relave decanta finos en superficie (ver fotos).
-  const surfaceMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x4a4a44,
-    roughness: 0.35,
-    metalness: 0.2,
-    transparent: true,
-    opacity: 0.94,
-    transmission: 0.05,
-    thickness: 1.8,
-    ior: 1.33,
-    side: THREE.DoubleSide,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.55,
-  });
+  const surfaceMaterial = waterShader.createMaterial();
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   surface.position.y = 5;
   surface.renderOrder = 2;
   scene.add(surface);
 
-  // Anillo fino bajo el espejo: refuerza visualmente el rebose por encima de la corona (desborde literal).
-  const crownHaloMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x4a4a44,
-    emissive: 0x0a0a0a,
-    emissiveIntensity: 0.06,
-    roughness: 0.4,
-    metalness: 0.1,
+  const beachMat = new THREE.MeshStandardMaterial({
+    color: 0x5c4e3a,
+    roughness: 0.96,
+    metalness: 0.02,
     transparent: true,
-    opacity: 0.4,
-    transmission: 0.2,
-    ior: 1.32,
+    opacity: 0.75,
+  });
+  const beachRing = new THREE.Mesh(new THREE.RingGeometry(82, 92, 96), beachMat);
+  beachRing.rotation.x = -Math.PI / 2;
+  beachRing.position.set(BOWL_CX, 5, BOWL_CZ);
+  beachRing.renderOrder = 1;
+  scene.add(beachRing);
+
+  const warningRingMat = new THREE.MeshBasicMaterial({
+    color: 0xf59e0b,
+    transparent: true,
+    opacity: 0,
     side: THREE.DoubleSide,
     depthWrite: false,
   });
-  const crownHalo = new THREE.Mesh(
-    new THREE.RingGeometry(76, 130, 96),
-    crownHaloMaterial
-  );
-  crownHalo.rotation.x = -Math.PI / 2;
-  crownHalo.position.set(BOWL_CX, relaveMsnmToSurfaceY(780), BOWL_CZ);
-  crownHalo.visible = false;
-  crownHalo.renderOrder = 3;
-  scene.add(crownHalo);
+  const warningRing = new THREE.Mesh(new THREE.RingGeometry(88, 94, 96), warningRingMat);
+  warningRing.rotation.x = -Math.PI / 2;
+  warningRing.position.set(BOWL_CX, 5, BOWL_CZ);
+  warningRing.renderOrder = 4;
+  scene.add(warningRing);
 
   let smoothLevel = 780;
   let lastSurfaceY = 5;
-  const position = surfaceGeometry.attributes.position as THREE.BufferAttribute;
-  const baseLocalY = new Float32Array(position.count);
-  for (let i = 0; i < position.count; i += 1) {
-    baseLocalY[i] = position.getY(i);
+  const initialPos = surfaceGeometry.attributes.position as THREE.BufferAttribute;
+
+  let rippleFrame = 0;
+  let lastSpillSpread = 0;
+  let baseLocalY = new Float32Array(initialPos.count);
+  for (let i = 0; i < initialPos.count; i += 1) {
+    baseLocalY[i] = initialPos.getY(i);
   }
+
+  const rebuildSurface = (spreadM: number) => {
+    if (Math.abs(spreadM - lastSpillSpread) < 0.05) return;
+    lastSpillSpread = spreadM;
+    const shape = spreadM > 0.02 ? getOverflowSpillShape(spreadM) : lakeShape;
+    surfaceGeometry.dispose();
+    surfaceGeometry = new THREE.ShapeGeometry(shape, 48);
+    surfaceGeometry.rotateX(-Math.PI / 2);
+    surfaceGeometry.computeVertexNormals();
+    surface.geometry = surfaceGeometry;
+    const pos = surfaceGeometry.attributes.position as THREE.BufferAttribute;
+    baseLocalY = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i += 1) {
+      baseLocalY[i] = pos.getY(i);
+    }
+  };
 
   return {
     update: (state, delta) => {
-      const clampedLevel = THREE.MathUtils.clamp(state.relaveLevel, RELAVE_MIN, RELAVE_MAX);
+      const clampedLevel = THREE.MathUtils.clamp(state.relaveLevel, RELAVE_MIN_M, OVERFLOW_SIM_MAX_M);
       smoothLevel = THREE.MathUtils.lerp(
         smoothLevel,
         clampedLevel,
@@ -133,61 +126,56 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
       lastSurfaceY = surfaceY;
       surface.position.y = surfaceY;
 
-      // Oleaje sutil por desplazamiento de vértices
-      for (let i = 0; i < position.count; i += 1) {
-        const x = position.getX(i);
-        const z = position.getZ(i);
+      const freeboard = CROWN_ELEVATION_M - smoothLevel;
+      const hydraulic = computeHydraulicAlert(freeboard, THREE.MathUtils.clamp(Math.max(0, -freeboard) / 1.5, 0, 1));
+      const { spillSeverity, spillM, lowFreeboard, activeOverflow } = hydraulic;
+
+      rebuildSurface(spillM);
+
+      const rainRipple = state.rainIntensity / 90;
+      const pos = surfaceGeometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i += 1) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
         const ripple =
-          Math.sin(x * 0.08 + state.time * 1.6) * 0.04 +
-          Math.cos(z * 0.085 + state.time * 1.3) * 0.035 +
-          Math.sin((x + z) * 0.05 + state.time * 4.0) * (state.rainIntensity / 90) * 0.08;
-        position.setY(i, baseLocalY[i] + ripple);
+          Math.sin(x * 0.05 + state.time * 1.2) * 0.03 +
+          Math.cos(z * 0.055 + state.time * 1.0) * 0.028 +
+          Math.sin((x + z) * 0.035 + state.time * 2.8) * (0.02 + rainRipple * 0.08);
+        pos.setY(i, baseLocalY[i] + ripple);
       }
-      position.needsUpdate = true;
-      surfaceGeometry.computeVertexNormals();
-
-      const spilling = smoothLevel > CROWN_LEVEL_M;
-      const severe = smoothLevel >= CROWN_LEVEL_M - 0.2;
-      const danger = spilling || severe;
-      const overM = Math.max(0, smoothLevel - CROWN_LEVEL_M);
-
-      // Desborde: mismo tono opaco/cremoso, sin tinte rojo vs azul aislado.
-      surfaceMaterial.color.set(danger ? 0x4f4b44 : 0x4a4a44);
-      surfaceMaterial.opacity = danger ? 0.97 : 0.94;
-      surfaceMaterial.transmission = danger ? 0.05 : 0.05;
-      if (danger) {
-        surfaceMaterial.emissive.setHex(0x080808);
-        surfaceMaterial.emissiveIntensity = 0.04 + overM * 0.1;
-      } else {
-        surfaceMaterial.emissive.setHex(0x000000);
-        surfaceMaterial.emissiveIntensity = 0;
+      pos.needsUpdate = true;
+      if (rippleFrame % 3 === 0) {
+        surfaceGeometry.computeVertexNormals();
       }
-      linerMaterial.color.set(danger ? 0x2a0a0a : 0x1a1512);
+      rippleFrame += 1;
 
-      crownHalo.position.y = surfaceY - 0.04;
-      crownHalo.position.x = BOWL_CX;
-      crownHalo.position.z = BOWL_CZ;
-      crownHalo.visible = spilling;
-      crownHaloMaterial.opacity = THREE.MathUtils.clamp(0.28 + overM * 0.32, 0, 0.9);
-      crownHaloMaterial.emissiveIntensity = 0.15 + overM * 0.22;
-      crownHalo.scale.setScalar(1 + overM * 0.04);
+      beachRing.position.y = surfaceY - 0.22;
+      beachMat.opacity = 0.55 + spillSeverity * 0.2;
 
-      return {
-        relaveLevel: smoothLevel,
-        freeboard: CROWN_LEVEL_M - smoothLevel,
-      };
+      waterShader.update({ time: state.time, freeboard, spillSeverity, weirBoost: activeOverflow ? spillSeverity : 0 });
+      linerMaterial.color.setHex(activeOverflow ? 0x2a2520 : lowFreeboard ? 0x252220 : GEOMEMBRANE);
+
+      const warnPulse = lowFreeboard && !activeOverflow ? 0.35 + Math.sin(state.time * 5) * 0.25 : 0;
+      warningRing.position.y = surfaceY - 0.06;
+      warningRingMat.opacity = warnPulse;
+      warningRing.visible = warnPulse > 0.05;
+
+      return { relaveLevel: smoothLevel, freeboard, spillSeverity, spillM };
     },
     getCurrentHeight: () => lastSurfaceY,
     dispose: () => {
       scene.remove(surface);
       scene.remove(liner);
-      scene.remove(crownHalo);
+      scene.remove(warningRing);
+      scene.remove(beachRing);
       surfaceGeometry.dispose();
-      surfaceMaterial.dispose();
+      waterShader.dispose();
+      beachMat.dispose();
+      (beachRing.geometry as THREE.BufferGeometry).dispose();
       linerGeometry.dispose();
       linerMaterial.dispose();
-      (crownHalo.geometry as THREE.BufferGeometry).dispose();
-      crownHaloMaterial.dispose();
+      warningRingMat.dispose();
+      (warningRing.geometry as THREE.BufferGeometry).dispose();
     },
   };
 }
