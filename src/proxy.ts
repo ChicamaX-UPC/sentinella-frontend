@@ -5,6 +5,9 @@ const ACCESS_COOKIE = "st_access";
 
 const AUTH_LOGIN = "/login";
 const AUTH_FORGOT = "/forgot-password";
+const AUTH_REGISTER = "/register";
+
+const PUBLIC_PATHS = new Set(["/", AUTH_LOGIN, AUTH_FORGOT, AUTH_REGISTER]);
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,21 +18,20 @@ export function proxy(request: NextRequest) {
     pathname.startsWith("/api/auth/register") ||
     pathname.startsWith("/api/auth/forgot-password") ||
     pathname.startsWith("/api/backend") ||
+    pathname.startsWith("/landing") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js"
   ) {
     return NextResponse.next();
   }
 
-  if (pathname === AUTH_LOGIN || pathname === AUTH_FORGOT || pathname === "/register") {
+  const token = request.cookies.get(ACCESS_COOKIE)?.value;
+
+  if (PUBLIC_PATHS.has(pathname)) {
+    if (token && (pathname === AUTH_LOGIN || pathname === AUTH_REGISTER)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
     return NextResponse.next();
-  }
-
-  const token = request.cookies.get(ACCESS_COOKIE);
-
-  if (pathname === "/") {
-    const target = token ? "/dashboard" : AUTH_LOGIN;
-    return NextResponse.redirect(new URL(target, request.url));
   }
 
   if (!token) {
@@ -44,6 +46,9 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
+    "/login",
+    "/register",
+    "/forgot-password",
     "/dashboard/:path*",
     "/monitoring/:path*",
     "/alerts/:path*",
@@ -53,7 +58,6 @@ export const config = {
     "/digital-twin/:path*",
     "/simulations",
     "/simulations/:path*",
-    "/register",
     "/admin/:path*",
     "/profile",
     "/mobile",

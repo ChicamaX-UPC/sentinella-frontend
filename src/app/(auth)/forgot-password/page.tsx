@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Recuperar contraseña</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Recuperar contraseña</h1>
       <p className="mt-2 text-sm text-slate-500">Te enviaremos un enlace si el correo está registrado.</p>
       <form className="mt-10 space-y-5" onSubmit={(ev) => void onSubmit(ev)}>
         <div>
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
           {loading ? "Enviando…" : "Enviar enlace"}
         </button>
       </form>
-      <p className="mt-8 border-t border-white/10 pt-7 text-left text-sm text-slate-500">
+      <p className="mt-8 border-t border-border pt-7 text-left text-sm text-muted-foreground">
         <Link href="/login" className={AUTH_LINK_CLASS}>
           Volver al inicio de sesión
         </Link>

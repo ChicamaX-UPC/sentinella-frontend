@@ -1,6 +1,6 @@
-/** Estilos auth con hex fijos (evita conflicto con token `accent` de shadcn). */
+/** Campos auth: colores vía `.auth-field` en globals.css (claro/oscuro). */
 export const AUTH_FIELD_CLASS =
-  "mt-2 w-full rounded-lg border border-white/15 bg-[#0a0a0a] px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-[#ff8c42]/50 focus:bg-[#111111] focus:ring-1 focus:ring-[#ff8c42]/25";
+  "auth-field mt-2 w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus:ring-1 focus:ring-[#ff8c42]/25";
 
 export const AUTH_SUBMIT_CLASS =
   "w-full cursor-pointer rounded-lg border-0 bg-[#ff8c42] py-2.5 text-sm font-semibold text-white shadow-none transition hover:bg-[#ff7629] disabled:cursor-not-allowed disabled:opacity-60";

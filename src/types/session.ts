@@ -5,6 +5,7 @@ export interface SessionUser {
   email: string;
   fullName: string;
   role: Role;
+  organizationId: string;
   tailingDamIds: string[];
   active: boolean;
   permissions: string[];

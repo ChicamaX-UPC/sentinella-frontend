@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { apiFetch } from "@/lib/api/http";
 import { parseWsMessage } from "@/lib/websocket/parse-message";
 import { useAlertStore } from "@/stores/useAlertStore";
 import { useNodeStore } from "@/stores/useNodeStore";
@@ -16,15 +17,15 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     (async () => {
-      const tokRes = await fetch("/api/auth/ws-token", { credentials: "include" });
-      if (!tokRes.ok || cancelled) {
+      const ticketRes = await apiFetch("auth/ws-ticket", { method: "POST" });
+      if (!ticketRes.ok || cancelled) {
         return;
       }
-      const { token } = (await tokRes.json()) as { token?: string };
-      if (!token || cancelled) {
+      const { ticket } = (await ticketRes.json()) as { ticket?: string };
+      if (!ticket || cancelled) {
         return;
       }
-      const url = `${WS_BASE}/v1/ws?token=${encodeURIComponent(token)}`;
+      const url = `${WS_BASE}/v1/ws?ticket=${encodeURIComponent(ticket)}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 

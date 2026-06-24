@@ -10,6 +10,7 @@ export function mapUserResourceToSession(raw: Record<string, unknown>): SessionU
     email: String(raw.email ?? ""),
     fullName: String(raw.fullName ?? ""),
     role,
+    organizationId: String(raw.organizationId ?? ""),
     tailingDamIds: Array.isArray(raw.tailingDamIds) ? (raw.tailingDamIds as unknown[]).map(String) : [],
     active: Boolean(raw.active),
     permissions: effectivePermissions(stored, role),

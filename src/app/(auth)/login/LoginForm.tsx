@@ -54,7 +54,7 @@ export function LoginForm({ redirectAfterLogin }: LoginFormProps) {
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Iniciar sesión</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Iniciar sesión</h1>
       <p className="mt-2 text-sm text-slate-500">Accede con tu cuenta corporativa</p>
       <form className="mt-10 space-y-5" onSubmit={(e) => void onSubmit(e)}>
         <div>
@@ -94,7 +94,7 @@ export function LoginForm({ redirectAfterLogin }: LoginFormProps) {
           {loading ? "Entrando…" : "Entrar"}
         </button>
       </form>
-      <div className="mt-8 flex flex-col gap-2 border-t border-white/10 pt-7 text-left text-sm text-slate-500">
+      <div className="mt-8 flex flex-col gap-2 border-t border-border pt-7 text-left text-sm text-muted-foreground">
         <Link href="/forgot-password" className={AUTH_LINK_CLASS}>
           Olvidé mi contraseña
         </Link>

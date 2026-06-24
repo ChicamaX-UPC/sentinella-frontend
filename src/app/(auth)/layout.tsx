@@ -3,7 +3,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="auth-scheme relative min-h-dvh min-h-screen bg-auth-bg text-slate-100">
+    <div className="auth-scheme relative min-h-dvh min-h-screen bg-auth-bg text-foreground">
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <ThemeToggle className="theme-toggle-btn" />
       </div>

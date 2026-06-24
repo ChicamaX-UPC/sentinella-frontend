@@ -36,6 +36,7 @@ const ROLE_DEFAULTS: Record<Role, PermissionCode[]> = {
     "CLOSE_ALERTS",
     "REGISTER_ROUNDS",
     "GENERATE_REPORTS",
+    "MANAGE_USERS",
     "MANAGE_SIMULATIONS",
     "VIEW_SIMULATIONS",
     "RUN_SIMULATIONS",
