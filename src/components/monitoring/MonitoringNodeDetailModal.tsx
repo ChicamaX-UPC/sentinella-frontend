@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { ForecastChart } from "@/components/monitoring/ForecastChart";
 import { ApiError, apiJson, withQuery } from "@/lib/api/http";
+import { fetchNodeForecast, type NodeForecast } from "@/lib/api/forecast";
 import type { PageResponse } from "@/lib/api/page";
 import { labelSensorType } from "@/lib/ui/labels";
 
@@ -42,6 +44,7 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
   const [readingsPageSize, setReadingsPageSize] = useState(15);
   const [readingsTotal, setReadingsTotal] = useState(0);
   const [readingsTotalPages, setReadingsTotalPages] = useState(0);
+  const [forecast, setForecast] = useState<NodeForecast | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadReadings = useCallback(
@@ -65,6 +68,7 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
       setReadingsPage(0);
       setReadingsTotal(0);
       setReadingsTotalPages(0);
+      setForecast(null);
       setError(null);
       return;
     }
@@ -73,10 +77,12 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
       apiJson<SensorNode>(`nodes/${nodeId}`).catch(() => null),
       apiJson<Reading>(`nodes/${nodeId}/status`).catch(() => null),
       loadReadings(nodeId, readingsPage, readingsPageSize),
+      fetchNodeForecast(nodeId, 24).catch(() => null),
     ])
-      .then(([n, st]) => {
+      .then(([n, st, , fc]) => {
         setNode(n);
         setStatus(st);
+        setForecast(fc);
       })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "Error al cargar");
@@ -86,7 +92,7 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
   const title = node?.name ?? (nodeId ? `Nodo ${nodeId.slice(0, 8)}…` : "Detalle del nodo");
 
   return (
-    <Modal open={open} onClose={onClose} title={title} panelClassName="max-w-lg">
+    <Modal open={open} onClose={onClose} title={title} panelClassName="max-w-[min(100vw-2rem,36rem)]">
       {error ? <p className="mb-3 text-sm text-amber-400">{error}</p> : null}
       {node ? (
         <div className="space-y-3 text-sm text-slate-300">
@@ -123,6 +129,38 @@ export function MonitoringNodeDetailModal({ nodeId, open, onClose }: Props) {
           ) : (
             <p className="text-sm text-slate-500">Sin lecturas recientes.</p>
           )}
+          {forecast ? (
+            <div className="rounded-lg border border-violet-900/40 bg-violet-950/20 p-3">
+              <p className="font-medium text-slate-200">Proyección 24 h</p>
+              {forecast.leadTimeMinutes != null && forecast.estimatedThresholdBreachAt ? (
+                <p className="mt-1 text-xs text-violet-200">
+                  ETA umbral: ~{Math.round(forecast.leadTimeMinutes / 60)} h (
+                  {new Date(forecast.estimatedThresholdBreachAt).toLocaleString()})
+                  {forecast.rainAdjusted ? " · ajustado por lluvia" : ""}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">Sin cruce de umbral estimado en el horizonte.</p>
+              )}
+              <div className="mt-3 w-full min-w-0 overflow-x-auto">
+                <div className="min-w-[280px]">
+                  <ForecastChart
+                  points={forecast.points.map((p) => ({
+                    timestamp: p.timestamp,
+                    value: typeof p.value === "number" ? p.value : parseFloat(String(p.value)),
+                    projected: p.projected,
+                  }))}
+                  threshold={
+                    forecast.thresholdValue != null
+                      ? typeof forecast.thresholdValue === "number"
+                        ? forecast.thresholdValue
+                        : parseFloat(String(forecast.thresholdValue))
+                      : null
+                  }
+                />
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Historial de lecturas</p>
             <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto text-xs text-slate-400">

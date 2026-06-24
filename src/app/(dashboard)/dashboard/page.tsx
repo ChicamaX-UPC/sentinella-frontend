@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DashboardNodesMapSection } from "@/components/dashboard/DashboardNodesMapSection";
 import { KpiStatCard } from "@/components/dashboard/KpiStatCard";
@@ -14,6 +15,7 @@ type Executive = {
   activeAlerts?: number;
   criticalAlerts?: number;
   nodesWithRecentData?: number;
+  predictiveRiskNodes?: number;
 };
 
 type FieldKpi = {
@@ -52,6 +54,9 @@ function IconNodes() {
 
 export default function ExecutiveDashboardPage() {
   const user = useSessionStore((s) => s.user);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [billingNotice, setBillingNotice] = useState<string | null>(null);
   const [kpi, setKpi] = useState<Executive | null>(null);
   const [field, setField] = useState<FieldKpi | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -61,6 +66,13 @@ export default function ExecutiveDashboardPage() {
   useEffect(() => {
     useSessionStore.getState().hydrate();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("billing") === "success") {
+      setBillingNotice("Pago recibido. Tu suscripción está activa y ya puedes usar el panel.");
+      router.replace("/dashboard");
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     setKpiLoading(true);
@@ -105,6 +117,12 @@ export default function ExecutiveDashboardPage() {
     <div className="mx-auto max-w-7xl">
       <PageHeader eyebrow="Inicio" title="Panel ejecutivo" />
 
+      {billingNotice ? (
+        <p className="mb-4 rounded-lg border border-emerald-800/40 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+          {billingNotice}
+        </p>
+      ) : null}
+
       <SiteOpsBanner
         loading={kpiLoading}
         totalNodes={kpi?.totalNodes}
@@ -114,7 +132,7 @@ export default function ExecutiveDashboardPage() {
 
       {error ? <p className="mb-4 rounded-lg border border-amber-800/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">{error}</p> : null}
 
-      <section className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <KpiStatCard
           label="Nodos de monitoreo"
           value={kpi?.totalNodes ?? "—"}
@@ -142,6 +160,13 @@ export default function ExecutiveDashboardPage() {
           hint="Nodos con lectura en la última hora"
           variant="accent"
           icon={<IconGauge />}
+        />
+        <KpiStatCard
+          label="Riesgo predictivo 24 h"
+          value={kpi?.predictiveRiskNodes ?? "—"}
+          hint="Nodos con cruce de umbral estimado en < 12 h"
+          variant={(kpi?.predictiveRiskNodes ?? 0) > 0 ? "critical" : "default"}
+          icon={<IconAlert />}
         />
       </section>
 
