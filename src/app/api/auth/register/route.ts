@@ -8,7 +8,8 @@ export async function POST(request: Request) {
     !body ||
     typeof body.email !== "string" ||
     typeof body.password !== "string" ||
-    typeof body.fullName !== "string"
+    typeof body.fullName !== "string" ||
+    typeof body.companyName !== "string"
   ) {
     return NextResponse.json({ message: "Cuerpo invalido" }, { status: 400 });
   }
@@ -16,7 +17,12 @@ export async function POST(request: Request) {
   const upstream = await fetch(`${getSentinellaGatewayRestPrefix()}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: body.email, password: body.password, fullName: body.fullName }),
+    body: JSON.stringify({
+      email: body.email,
+      password: body.password,
+      fullName: body.fullName,
+      companyName: body.companyName,
+    }),
   });
 
   const text = await upstream.text();

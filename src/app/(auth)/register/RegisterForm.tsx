@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { mapUserResourceToSession } from "@/lib/auth/map-user";
+import { planCodeFromQuery } from "@/lib/api/billing";
 import { AUTH_FIELD_CLASS, AUTH_LINK_CLASS, AUTH_SUBMIT_CLASS } from "@/lib/auth/auth-ui";
 import { useSessionStore } from "@/stores/useSessionStore";
 
-export function RegisterForm() {
+function RegisterFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedPlan = searchParams.get("plan");
   const setUser = useSessionStore((s) => s.setUser);
+  const [companyName, setCompanyName] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +29,11 @@ export function RegisterForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email, password, fullName, companyName }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        setError(typeof data.message === "string" ? data.message : "No se pudo registrar");
+        setError(typeof data.message === "string" ? data.message : "No se pudo registrar la empresa");
         return;
       }
       const userRaw = data.user as Record<string, unknown> | undefined;
@@ -38,7 +42,8 @@ export function RegisterForm() {
         return;
       }
       setUser(mapUserResourceToSession(userRaw));
-      router.replace("/dashboard");
+      const planQuery = planCodeFromQuery(preselectedPlan) ? `&plan=${preselectedPlan}` : "";
+      router.replace(`/profile?billing=1${planQuery}`);
     } finally {
       setLoading(false);
     }
@@ -46,14 +51,35 @@ export function RegisterForm() {
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Crear cuenta</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Registrar empresa minera</h1>
       <p className="mt-2 text-sm text-slate-500">
-        Rol inicial <span className="text-slate-400">solo lectura</span>. Un administrador puede ampliar permisos.
+        Cuenta corporativa para operar tranques de relaves. Tras el registro elegirá su plan y activará la
+        suscripción mensual.
       </p>
+      {preselectedPlan ? (
+        <p className="mt-2 text-sm text-sky-400/90">
+          Plan preseleccionado: <span className="font-medium capitalize">{preselectedPlan}</span>
+        </p>
+      ) : null}
       <form className="mt-10 space-y-5" onSubmit={(e) => void onSubmit(e)}>
         <div>
+          <label className="block text-xs font-medium uppercase tracking-wider text-slate-500" htmlFor="companyName">
+            Empresa minera
+          </label>
+          <input
+            id="companyName"
+            type="text"
+            autoComplete="organization"
+            required
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="Ej. Minera ChicamaX S.A."
+            className={AUTH_FIELD_CLASS}
+          />
+        </div>
+        <div>
           <label className="block text-xs font-medium uppercase tracking-wider text-slate-500" htmlFor="fullName">
-            Nombre completo
+            Responsable de cuenta
           </label>
           <input
             id="fullName"
@@ -62,12 +88,13 @@ export function RegisterForm() {
             required
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            placeholder="Nombre del contacto principal"
             className={AUTH_FIELD_CLASS}
           />
         </div>
         <div>
           <label className="block text-xs font-medium uppercase tracking-wider text-slate-500" htmlFor="reg-email">
-            Correo
+            Correo corporativo
           </label>
           <input
             id="reg-email"
@@ -95,20 +122,24 @@ export function RegisterForm() {
           />
         </div>
         {error ? <p className="text-sm text-red-400/95">{error}</p> : null}
-        <button
-          type="submit"
-          disabled={loading}
-          className={AUTH_SUBMIT_CLASS}
-        >
-          {loading ? "Creando cuenta…" : "Registrarse"}
+        <button type="submit" disabled={loading} className={AUTH_SUBMIT_CLASS}>
+          {loading ? "Registrando empresa…" : "Registrar empresa"}
         </button>
       </form>
-      <p className="mt-8 border-t border-white/10 pt-7 text-left text-sm text-slate-500">
-        ¿Ya tienes cuenta?{" "}
+      <p className="mt-8 border-t border-border pt-7 text-left text-sm text-muted-foreground">
+        ¿Ya tiene cuenta?{" "}
         <Link href="/login" className={`${AUTH_LINK_CLASS} font-medium`}>
           Iniciar sesión
         </Link>
       </p>
     </div>
+  );
+}
+
+export function RegisterForm() {
+  return (
+    <Suspense fallback={<div className="h-40 animate-pulse rounded-xl bg-white/5" />}>
+      <RegisterFormContent />
+    </Suspense>
   );
 }

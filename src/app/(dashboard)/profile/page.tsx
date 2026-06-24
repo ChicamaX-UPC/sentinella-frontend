@@ -1,8 +1,11 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PermissionList } from "@/components/profile/PermissionList";
+import { SubscriptionSection } from "@/components/profile/SubscriptionSection";
+import { planCodeFromQuery } from "@/lib/api/billing";
 import { mapUserResourceToSession } from "@/lib/auth/map-user";
 import { effectivePermissions, type PermissionCode } from "@/lib/auth/permissions";
 import { useTailingDamOptions } from "@/hooks/useTailingDamOptions";
@@ -97,6 +100,29 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={<ProfilePageSkeleton />}>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
+
+function ProfilePageSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl animate-pulse space-y-6">
+      <div className="h-14 rounded-lg bg-white/5" />
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="h-72 rounded-2xl bg-white/5" />
+        <div className="h-96 rounded-2xl bg-white/5" />
+      </div>
+    </div>
+  );
+}
+
+function ProfilePageContent() {
+  const searchParams = useSearchParams();
+  const highlightBilling = searchParams.get("billing") != null;
+  const preselectedPlanCode = planCodeFromQuery(searchParams.get("plan"));
   const { getTailingDamLabel } = useTailingDamOptions(true);
   const sessionUser = useSessionStore((s) => s.user);
   const setUser = useSessionStore((s) => s.setUser);
@@ -282,6 +308,12 @@ export default function ProfilePage() {
         </aside>
 
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-5">
+          <SubscriptionSection
+            customerEmail={profile?.email ?? sessionUser?.email ?? ""}
+            highlight={highlightBilling}
+            preselectedPlanCode={preselectedPlanCode}
+          />
+
           {(error && profile) || success ? (
             <div
               className={`rounded-xl border px-4 py-3 text-sm ${
