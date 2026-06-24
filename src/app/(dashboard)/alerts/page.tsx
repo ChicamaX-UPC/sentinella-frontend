@@ -257,7 +257,8 @@ function AlertsPageContent() {
             </p>
           </div>
 
-          <div className="scrollbar-none min-h-0 flex-1 overflow-auto">
+          <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="sticky top-0 z-10 bg-surface-elevated/95 backdrop-blur-sm">
                 <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-500">
@@ -310,6 +311,7 @@ function AlertsPageContent() {
                 ))}
               </tbody>
             </table>
+            </div>
             {filtered.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-slate-500">No hay alertas con los filtros actuales.</p>
             ) : null}

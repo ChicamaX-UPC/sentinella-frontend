@@ -13,7 +13,7 @@ export function AuthMarketingPanel() {
     <aside className="auth-panel relative hidden min-h-[50vh] w-full lg:flex lg:min-h-screen lg:flex-1 lg:flex-col lg:items-center lg:justify-center">
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center justify-center gap-8 px-6 py-10 sm:px-10 lg:flex-row lg:items-end lg:justify-center lg:gap-0 lg:px-10 lg:py-10 xl:max-w-6xl">
         {/* Textos: más arriba, más grande, z alto para quedar por encima de la imagen al cruzarse */}
-        <div className="relative z-30 w-full min-w-0 max-w-md shrink-0 lg:max-w-[26rem] xl:max-w-lg lg:-translate-y-10 lg:pb-4 lg:pr-2 xl:-translate-y-14 xl:pr-4">
+        <div className="auth-marketing-copy relative z-30 w-full min-w-0 max-w-md shrink-0 lg:max-w-[26rem] xl:max-w-lg lg:-translate-y-10 lg:pb-4 lg:pr-2 xl:-translate-y-14 xl:pr-4">
           <h2 className="text-4xl font-bold leading-[1.12] tracking-tight text-slate-50 drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-[2.35rem] md:text-5xl lg:text-[2.65rem] xl:text-5xl">
             Monitoreo de tranques de relaves en tiempo real
           </h2>

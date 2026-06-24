@@ -17,17 +17,35 @@ function UserIcon({ className }: { className?: string }) {
   );
 }
 
-export function DashboardTopBar() {
+function MenuIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+    </svg>
+  );
+}
+
+export function DashboardTopBar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const user = useSessionStore((s) => s.user);
   const pathname = usePathname();
   const onProfile = pathname === "/profile" || pathname.startsWith("/profile/");
   const displayName = user?.fullName ?? user?.email ?? "Mi cuenta";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 border-b border-white/10 bg-app/90 px-4 backdrop-blur-md sm:gap-6 sm:px-6">
+    <header className="dash-topbar sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 px-4 sm:gap-6 sm:px-6">
+      {onMenuToggle ? (
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          className="dash-profile-btn inline-flex shrink-0 items-center justify-center rounded-lg p-2 md:hidden"
+          aria-label="Abrir menú de navegación"
+        >
+          <MenuIcon className="h-5 w-5" />
+        </button>
+      ) : null}
       <div className="flex min-w-0 flex-col">
-        <span className="text-sm font-bold tracking-tight text-white">Sentinella</span>
-        <span className="hidden text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:block">
+        <span className="dash-topbar__brand text-sm font-bold tracking-tight">Sentinella</span>
+        <span className="dash-topbar__subtitle hidden text-[10px] font-medium uppercase tracking-wider sm:block">
           Sala de control — tranques de relaves
         </span>
       </div>
@@ -37,10 +55,8 @@ export function DashboardTopBar() {
         <Link
           href="/profile"
           title={user?.email ? `${displayName} · ${user.email}` : displayName}
-          className={`inline-flex max-w-[min(100%,16rem)] items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors sm:max-w-[18rem] ${
-            onProfile
-              ? "border-accent/40 bg-accent/15 text-accent"
-              : "border-white/12 bg-white/5 text-slate-200 hover:border-white/20 hover:bg-white/10 hover:text-white"
+          className={`dash-profile-btn inline-flex max-w-[min(100%,16rem)] items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors sm:max-w-[18rem] ${
+            onProfile ? "dash-profile-btn--active" : ""
           }`}
         >
           <UserIcon className="h-4 w-4 shrink-0 opacity-90" />

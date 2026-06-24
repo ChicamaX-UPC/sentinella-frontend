@@ -62,7 +62,7 @@ export function Modal({ open, onClose, title, children, panelClassName = "max-w-
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-slate-200"
+            className="shrink-0 rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Cerrar
           </button>
