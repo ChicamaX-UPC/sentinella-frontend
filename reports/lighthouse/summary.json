@@ -1,0 +1,48 @@
+{
+  "generatedAt": "2026-06-24T23:39:56.107Z",
+  "base": "http://localhost:3000",
+  "modules": [
+    {
+      "module": "dashboard",
+      "label": "Inicio",
+      "path": "/dashboard",
+      "url": "http://localhost:3000/dashboard",
+      "error": "lighthouse_failed"
+    },
+    {
+      "module": "monitoring",
+      "label": "Monitoreo",
+      "path": "/monitoring",
+      "url": "http://localhost:3000/monitoring",
+      "error": "lighthouse_failed"
+    },
+    {
+      "module": "alerts",
+      "label": "Alertas",
+      "path": "/alerts",
+      "url": "http://localhost:3000/alerts",
+      "error": "lighthouse_failed"
+    },
+    {
+      "module": "digital-twin",
+      "label": "Gemelo digital",
+      "path": "/digital-twin",
+      "url": "http://localhost:3000/digital-twin",
+      "error": "lighthouse_failed"
+    },
+    {
+      "module": "simulations",
+      "label": "Simulaciones",
+      "path": "/simulations",
+      "url": "http://localhost:3000/simulations",
+      "error": "lighthouse_failed"
+    },
+    {
+      "module": "reports",
+      "label": "Reportes",
+      "path": "/reports",
+      "url": "http://localhost:3000/reports",
+      "error": "lighthouse_failed"
+    }
+  ]
+}

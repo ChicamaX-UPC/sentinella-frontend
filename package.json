@@ -10,7 +10,11 @@
     "start:remote": "next start --hostname 0.0.0.0 -p 3000",
     "lint": "eslint",
     "test": "vitest run",
-    "auth-hero:alpha": "node scripts/knockout-auth-hero-bg.mjs"
+    "auth-hero:alpha": "node scripts/knockout-auth-hero-bg.mjs",
+    "lighthouse": "npx --yes lighthouse http://localhost:3000/dashboard --only-categories=performance,accessibility,best-practices --output=html --output-path=./reports/lighthouse/dashboard.html --chrome-flags=\"--headless=new\"",
+    "lighthouse:landing": "npx --yes lighthouse http://localhost:3000/ --only-categories=performance,accessibility,best-practices --output=html --output-path=./reports/lighthouse/landing.html --chrome-flags=\"--headless=new\"",
+    "lighthouse:twin": "npx --yes lighthouse http://localhost:3000/digital-twin --only-categories=performance --output=html --output-path=./reports/lighthouse/digital-twin.html --chrome-flags=\"--headless=new\"",
+    "lighthouse:report": "node scripts/lighthouse-report.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
