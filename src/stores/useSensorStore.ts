@@ -11,11 +11,24 @@ export interface SensorReadingPayload {
 
 interface SensorState {
   lastByNode: Record<string, SensorReadingPayload>;
+  /** UUID de nodo → externalId (NW-01, PI-03…): permite resolver lecturas WS por ambos. */
+  aliasById: Record<string, string>;
+  registerNodeAliases: (nodes: Array<{ id: string; externalId?: string }>) => void;
   applyReading: (payload: Record<string, unknown>) => void;
 }
 
-export const useSensorStore = create<SensorState>((set) => ({
+export const useSensorStore = create<SensorState>((set, get) => ({
   lastByNode: {},
+  aliasById: {},
+  registerNodeAliases: (nodes) => {
+    const aliasById: Record<string, string> = { ...get().aliasById };
+    for (const node of nodes) {
+      if (node.externalId) {
+        aliasById[node.id] = node.externalId;
+      }
+    }
+    set({ aliasById });
+  },
   applyReading: (payload) => {
     const nodeId = typeof payload.nodeId === "string" ? payload.nodeId : undefined;
     if (!nodeId) {
@@ -29,8 +42,14 @@ export const useSensorStore = create<SensorState>((set) => ({
       unit: typeof payload.unit === "string" ? payload.unit : undefined,
       status: typeof payload.status === "string" ? payload.status : undefined,
     };
-    set((s) => ({
-      lastByNode: { ...s.lastByNode, [nodeId]: next },
-    }));
+    set((s) => {
+      const lastByNode = { ...s.lastByNode, [nodeId]: next };
+      // Indexar también por externalId para que el gemelo resuelva NW-01, PI-03, etc.
+      const alias = s.aliasById[nodeId];
+      if (alias) {
+        lastByNode[alias] = next;
+      }
+      return { lastByNode };
+    });
   },
 }));

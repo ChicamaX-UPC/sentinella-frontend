@@ -19,6 +19,7 @@ import {
 import { ApiError, apiJson, withQuery } from "@/lib/api/http";
 import type { PageResponse } from "@/lib/api/page";
 import { ApiSimulationScenario } from "@/lib/digitalTwin/scenarioAdapter";
+import { useSensorStore } from "@/stores/useSensorStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 
 const TwinCanvas = dynamic(() => import("@/components/DigitalTwin/TwinCanvas"), {
@@ -54,6 +55,8 @@ function DigitalTwinPageContent() {
     piezometricPressure: 0.35,
     spillSeverity: 0,
     spillM: 0,
+    spillFlowM3s: 0,
+    inflowM3s: 0,
   });
   const [error, setError] = useState<string | null>(null);
   const mode = useSimulationStore((s) => s.mode);
@@ -62,7 +65,11 @@ function DigitalTwinPageContent() {
 
   useEffect(() => {
     apiJson<PageResponse<TwinNode>>(withQuery("nodes", { page: 0, limit: 200 }))
-      .then((res) => setNodes(res.content))
+      .then((res) => {
+        setNodes(res.content);
+        // Índice UUID→externalId: las lecturas WS llegan con UUID y el gemelo resuelve por NW-01, PI-03…
+        useSensorStore.getState().registerNodeAliases(res.content);
+      })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? `Error ${e.status}` : "No se pudieron cargar los nodos");
       });

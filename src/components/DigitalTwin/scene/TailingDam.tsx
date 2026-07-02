@@ -26,7 +26,7 @@ export type TailingDamSystem = {
 };
 
 const DAM_BASE = 0x8b7355;
-const CROWN_GREY = 0xc0c0c0;
+const CROWN_GREY = 0xa8a8a8;
 
 const seepageTargets: Record<string, THREE.Vector3> = {
   "Talud Sur (PI-01)": new THREE.Vector3(-95, 8.2, 122),
@@ -254,9 +254,9 @@ export function createTailingDamSystem(scene: THREE.Scene): TailingDamSystem {
       crownMaterial.color.setHex(CROWN_GREY);
 
       canal.visible = rain >= 20;
-      canalMaterial.color.set(rain >= 45 ? 0xf59e0b : rain >= 30 ? 0xd97706 : 0x475569);
-      canalMaterial.emissive.set(rain >= 45 ? 0x78350f : 0x1e293b);
-      canalMaterial.emissiveIntensity = THREE.MathUtils.lerp(0.15, 0.85, rain / 80);
+      canalMaterial.color.set(rain >= 45 ? 0x64748b : rain >= 30 ? 0x52525b : 0x475569);
+      canalMaterial.emissive.set(rain >= 45 ? 0x1e293b : 0x1e293b);
+      canalMaterial.emissiveIntensity = THREE.MathUtils.lerp(0.12, 0.45, rain / 80);
 
       saturationOverlay.visible = state.showSaturationMap;
       const satCritical = state.piezometricPressure >= SATURATION_CRITICAL || saturation >= SATURATION_CRITICAL;

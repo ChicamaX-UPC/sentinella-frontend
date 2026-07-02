@@ -101,7 +101,7 @@ export function SimulationControls({ metrics, simulatedEvents }: Props) {
               Object.entries(OVERFLOW_DEMO_PARAMS).forEach(([k, v]) => setParam(k, v));
             }}
           >
-            Cargar preset desborde (785.8 msnm)
+            Cargar preset desborde (tormenta 60 mm/h · 785.8 msnm)
           </button>
         ) : null}
         <label className="dash-check-label mt-3 flex items-center gap-2">
@@ -253,6 +253,10 @@ export function SimulationControls({ metrics, simulatedEvents }: Props) {
           <p className={metrics.spillSeverity > 0.02 ? "text-rose-600 dark:text-rose-400" : ""}>
             Rebose: {metrics.spillM.toFixed(2)} m · severidad {(metrics.spillSeverity * 100).toFixed(0)}%
           </p>
+          <p className={metrics.spillFlowM3s > 0.01 ? "text-rose-600 dark:text-rose-400" : ""}>
+            Caudal vertedero: {metrics.spillFlowM3s.toFixed(2)} m³/s
+          </p>
+          <p>Caudal entrante: {metrics.inflowM3s.toFixed(2)} m³/s</p>
           <p>Intensidad lluvia: {metrics.rainIntensity.toFixed(1)} mm/h</p>
           <p>Presión piezométrica: {(metrics.piezometricPressure * 100).toFixed(0)}%</p>
           <p>Caudal filtración: {metrics.seepageFlow.toFixed(1)} L/min</p>

@@ -10,10 +10,17 @@ type TwinNode = {
   name: string;
 };
 
+/** Lectura simulada mínima que el motor entrega por blueprintId. */
+export type LabelReading = {
+  value: number;
+  unit: string;
+  status: string;
+};
+
 export type SensorLabelSystem = {
   setVisible: (visible: boolean) => void;
   setSize: (width: number, height: number) => void;
-  update: () => void;
+  update: (simReadings?: ReadonlyMap<string, LabelReading> | null) => void;
   render: (scene: THREE.Scene, camera: THREE.Camera) => void;
   dispose: () => void;
   domElement: HTMLElement;
@@ -77,12 +84,14 @@ export function createSensorLabelSystem(nodes: TwinNode[]): SensorLabelSystem {
     setSize: (width, height) => {
       labelRenderer.setSize(width, height);
     },
-    update: () => {
+    update: (simReadings) => {
       if (!visible) return;
       for (const label of labels) {
         const blueprintId = String(label.userData.blueprintId);
         const nodeId = String(label.userData.nodeId);
-        const reading = resolveReading(nodeId) ?? resolveReading(blueprintId);
+        // En simulación mandan las lecturas sintéticas; en vivo, el sensor store (WS).
+        const sim = simReadings?.get(blueprintId);
+        const reading = sim ?? resolveReading(nodeId) ?? resolveReading(blueprintId);
         const el = label.element as HTMLDivElement;
         const value = reading?.value;
         const unit = reading?.unit ?? "";

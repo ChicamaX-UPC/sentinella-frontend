@@ -64,6 +64,10 @@ export default function TwinCanvas({ nodes, onSelectSensor, onMetricsChange }: P
     <div
       ref={mountRef}
       className="relative h-[min(70vh,560px)] w-full min-h-[400px] rounded-lg border border-accent/30 overflow-hidden"
-    />
+    >
+      <p className="pointer-events-none absolute bottom-1.5 right-2 z-10 text-[10px] text-muted-foreground/70">
+        Imágenes © Esri, Maxar
+      </p>
+    </div>
   );
 }

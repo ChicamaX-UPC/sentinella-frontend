@@ -20,9 +20,9 @@ const vertexShader = `
   void main() {
     vec3 pos = position;
     float ripple =
-      sin(pos.x * 0.05 + time * 1.2) * 0.035 +
-      cos(pos.z * 0.055 + time * 1.0) * 0.03 +
-      sin((pos.x + pos.z) * 0.035 + time * 2.8) * (0.04 + spillSeverity * 0.05);
+      sin(pos.x * 0.08 + time * 1.4) * 0.022 +
+      cos(pos.z * 0.09 + time * 1.1) * 0.018 +
+      sin((pos.x + pos.z) * 0.05 + time * 2.2) * (0.015 + spillSeverity * 0.03);
     pos.y += ripple;
 
     vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
@@ -47,31 +47,37 @@ const fragmentShader = `
   varying float vFoam;
 
   void main() {
-    // Relave espeso: gris-café turbio (TSF en operación).
-    vec3 deepMud = vec3(0.30, 0.28, 0.24);
-    vec3 midMud = vec3(0.42, 0.39, 0.34);
-    vec3 shallow = vec3(0.48, 0.45, 0.40);
+    vec3 processWater = vec3(0.38, 0.52, 0.50);
+    vec3 deepWater = vec3(0.28, 0.42, 0.44);
+    vec3 shoreMud = vec3(0.48, 0.40, 0.32);
+    vec3 dryBeach = vec3(0.58, 0.50, 0.40);
 
     vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.4);
+    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.8);
+
+    float radial = clamp(vDist * 0.012, 0.0, 1.0);
+    vec3 waterColor = mix(processWater, deepWater, radial * 0.55);
+    waterColor = mix(waterColor, shoreMud, smoothstep(0.55, 0.95, radial));
 
     float lowBoard = freeboard > 0.0 && freeboard < ${MIN_FREEBOARD_M.toFixed(1)} ? 1.0 - freeboard : 0.0;
     float spill = max(spillSeverity, vFoam);
 
-    float flowNoise = sin(vWorldPosition.x * 0.12 + time * 2.2) * cos(vWorldPosition.z * 0.1 + time * 1.8) * 0.5 + 0.5;
-    float foamNoise = sin(vWorldPosition.x * 0.28 + time * 3.5) * cos(vWorldPosition.z * 0.25 + time * 2.8);
+    float wave = sin(vWorldPosition.x * 0.15 + time * 2.0) * cos(vWorldPosition.z * 0.12 + time * 1.6) * 0.5 + 0.5;
+    float foamNoise = sin(vWorldPosition.x * 0.22 + time * 2.8) * cos(vWorldPosition.z * 0.2 + time * 2.2);
 
-    float foamMask = clamp(lowBoard * 0.35 + spill * 0.85 + weirBoost * 0.7 + foamNoise * 0.12, 0.0, 0.55);
-    vec3 foamColor = vec3(0.62, 0.60, 0.56);
+    float foamMask = clamp(lowBoard * 0.3 + spill * 0.5 + weirBoost * 0.45 + foamNoise * 0.08, 0.0, 0.45);
+    vec3 foamColor = vec3(0.52, 0.50, 0.46);
 
-    float depthMix = clamp(vDist * 0.008, 0.0, 1.0);
-    vec3 waterColor = mix(shallow, mix(midMud, deepMud, depthMix), 0.55 + spill * 0.25);
-    waterColor = mix(waterColor, midMud * 0.9, flowNoise * spill * 0.15);
+    vec3 sunDir = normalize(vec3(0.55, 0.38, 0.25));
+    vec3 halfDir = normalize(sunDir + viewDir);
+    float spec = pow(max(dot(vNormal, halfDir), 0.0), 64.0) * 0.35;
+    spec += pow(max(dot(vNormal, halfDir), 0.0), 8.0) * wave * 0.12;
 
     vec3 color = mix(waterColor, foamColor, foamMask);
-    color += fresnel * vec3(0.04, 0.045, 0.04) * 0.35;
+    color += fresnel * vec3(0.06, 0.08, 0.07) * 0.4;
+    color += vec3(spec) * vec3(1.0, 0.95, 0.85);
 
-    float alpha = 0.94;
+    float alpha = 0.90 + fresnel * 0.06;
     gl_FragColor = vec4(color, alpha);
   }
 `;

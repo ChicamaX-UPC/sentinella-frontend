@@ -82,11 +82,13 @@ export const TWIN_SIMULATIONS: TwinSimulation[] = [
   },
   {
     id: "OVERFLOW_DEMO",
-    label: "Desborde controlado",
-    description: "Nivel inicial 785.8 msnm y llenado acelerado para visualizar rebose en el vertedero.",
+    label: "Desborde (tormenta + nivel alto)",
+    description:
+      "Nivel inicial alto + tormenta extrema: el vertedero entra en carga y el rebose emerge del balance hídrico (Q = C·L·H^1.5).",
     controls: [
-      { key: "fillRate", label: "Tasa de llenado", type: "range", min: 60, max: 120, step: 1, unit: "m³/día" },
-      { key: "relaveLevel", label: "Nivel base", type: "range", min: 785.5, max: OVERFLOW_SIM_MAX_M, step: 0.1, unit: "msnm" },
+      { key: "fillRate", label: "Tasa de llenado", type: "range", min: 0, max: 120, step: 1, unit: "m³/día" },
+      { key: "rainIntensity", label: "Pico de tormenta", type: "range", min: 0, max: 80, step: 1, unit: "mm/h" },
+      { key: "relaveLevel", label: "Nivel base", type: "range", min: 784, max: OVERFLOW_SIM_MAX_M, step: 0.1, unit: "msnm" },
     ],
     thresholds: { warning: { nivel: CROWN_ELEVATION_M - 0.5 }, critical: { nivel: CROWN_ELEVATION_M } },
     affectedSensors: ["NW-01", "PV-01"],
@@ -121,5 +123,6 @@ export const DEFAULT_TWIN_PARAMS: Record<string, number | string> = {
 export const OVERFLOW_DEMO_PARAMS: Record<string, number | string> = {
   ...DEFAULT_TWIN_PARAMS,
   fillRate: 110,
+  rainIntensity: 60,
   relaveLevel: 785.8,
 };

@@ -158,7 +158,15 @@ export function getWeirOutlet(): { position: THREE.Vector3; outward: THREE.Vecto
   const t = findWeirParameter();
   const position = full.getPoint(t);
   const tangent = full.getTangent(t).normalize();
-  const outward = new THREE.Vector3(tangent.z, 0, -tangent.x).normalize();
+  // Aguas abajo: desde el centro del vaso hacia el vertedero (no la normal del arco, que puede apuntar al interior).
+  const basinCenter = new THREE.Vector3(6, 0, 22);
+  const outward = position.clone().sub(basinCenter);
+  outward.y = 0;
+  if (outward.lengthSq() < 0.01) {
+    outward.set(0, 0, 1);
+  } else {
+    outward.normalize();
+  }
   return { position: position.clone(), outward, tangent };
 }
 
@@ -177,8 +185,9 @@ export function getOverflowSpillShape(spreadM: number): THREE.Shape {
   }
   const wx = position.x;
   const wz = -position.z;
-  const ox = outward.x * spreadM * 5.5;
-  const oz = -outward.z * spreadM * 5.5;
+  const visualSpread = spreadM * 14;
+  const ox = outward.x * visualSpread;
+  const oz = -outward.z * visualSpread;
   spill.lineTo(wx + ox * 0.6, wz + oz * 0.6);
   spill.lineTo(wx + ox, wz + oz);
   spill.lineTo(wx + ox * 0.35, wz + oz * 0.2);

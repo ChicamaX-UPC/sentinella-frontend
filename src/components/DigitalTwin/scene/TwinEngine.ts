@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TWIN_SIMULATIONS } from "@/components/DigitalTwin/simulations";
+import { createTwinTelemetryEmitter } from "@/lib/digitalTwin/twinTelemetryEmitter";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { createCameraPresetController, type CameraPresetId } from "./CameraPresets";
+import { createHologramLayerSystem } from "./HologramLayer";
 import { createDrainageSystem } from "./DrainageSystem";
 import { createOverflowSystem } from "./OverflowSystem";
 import { createSensorLabelSystem } from "./SensorLabels";
@@ -39,6 +41,56 @@ export type TwinEngine = {
   dispose: () => void;
   renderer: THREE.WebGLRenderer;
 };
+
+function createAridSky(scene: THREE.Scene): { mesh: THREE.Mesh; setDarkness: (d: number) => void } {
+  const skyGeo = new THREE.SphereGeometry(800, 32, 16);
+  const darknessUniform = { value: 0 };
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      sunDir: { value: new THREE.Vector3(0.55, 0.38, 0.25).normalize() },
+      darkness: darknessUniform,
+    },
+    vertexShader: `
+      varying vec3 vWorldPosition;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = wp.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 sunDir;
+      uniform float darkness;
+      varying vec3 vWorldPosition;
+      void main() {
+        vec3 dir = normalize(vWorldPosition);
+        float h = dir.y * 0.5 + 0.5;
+        vec3 horizon = vec3(0.92, 0.84, 0.72);
+        vec3 zenith = vec3(0.55, 0.72, 0.92);
+        vec3 sky = mix(horizon, zenith, pow(h, 0.65));
+        float sunDot = max(dot(dir, sunDir), 0.0);
+        float sunDisk = smoothstep(0.998, 0.9995, sunDot);
+        float sunGlow = pow(sunDot, 48.0) * 0.35;
+        sky += vec3(1.0, 0.95, 0.82) * (sunDisk * 0.9 + sunGlow);
+        float haze = smoothstep(0.0, 0.22, 1.0 - h) * 0.18;
+        sky = mix(sky, horizon, haze);
+        vec3 storm = vec3(0.35, 0.42, 0.52);
+        sky = mix(sky, storm, darkness * 0.65);
+        gl_FragColor = vec4(sky, 1.0);
+      }
+    `,
+  });
+  const sky = new THREE.Mesh(skyGeo, skyMat);
+  scene.add(sky);
+  return {
+    mesh: sky,
+    setDarkness: (d: number) => {
+      darknessUniform.value = THREE.MathUtils.clamp(d, 0, 1);
+    },
+  };
+}
 
 function createAridEnvironment(scene: THREE.Scene, renderer: THREE.WebGLRenderer): THREE.Texture {
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -84,8 +136,10 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
   const height = mount.clientHeight || 520;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xc5d8e8);
-  scene.fog = new THREE.Fog(0xd4e4f0, 280, 2200);
+  scene.background = null;
+  scene.fog = new THREE.Fog(0xc8d8e8, 260, 1400);
+
+  const sky = createAridSky(scene);
 
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1400);
   camera.position.set(170, 88, 178);
@@ -96,7 +150,7 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.18;
   mount.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -110,8 +164,8 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
 
   scene.add(new THREE.AmbientLight(0xfff4e8, 0.38));
   scene.add(new THREE.HemisphereLight(0xdce8f4, 0xa88a62, 0.42));
-  const dir = new THREE.DirectionalLight(0xffe8c8, 1.45);
-  dir.position.set(120, 175, 95);
+  const dir = new THREE.DirectionalLight(0xffe4c0, 1.55);
+  dir.position.set(140, 190, 110);
   dir.castShadow = true;
   dir.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
   dir.shadow.camera.near = 0.1;
@@ -125,10 +179,11 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
   const terrainSystem = createTerrainSystem(scene);
   const damSystem = createTailingDamSystem(scene);
   const waterSystem = createWaterPlaneSystem(scene, damSystem.basinRadius);
-  const overflowSystem = createOverflowSystem(scene);
+  const overflowSystem = createOverflowSystem(scene, isMobile);
   const weirStructure = createWeirStructureSystem(scene);
   const drainageSystem = createDrainageSystem(scene);
-  const weatherSystem = createWeatherSystem(scene);
+  const weatherSystem = createWeatherSystem(scene, sky.setDarkness);
+  const hologramLayer = createHologramLayerSystem(scene);
   const markerSystem = createSensorMarkerSystem(scene, nodes);
   const labelSystem = createSensorLabelSystem(nodes);
   mount.appendChild(labelSystem.domElement);
@@ -136,6 +191,7 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
   labelSystem.setVisible(useSimulationStore.getState().showSensorLabels);
 
   const simulationEffects = createSimulationEffects();
+  const telemetryEmitter = createTwinTelemetryEmitter(nodes);
   const cameraPresets = createCameraPresetController(camera, controls);
 
   const clock = new THREE.Clock();
@@ -199,6 +255,16 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
       }
     }
 
+    // Lecturas sintéticas del motor físico (solo en modo simulación).
+    const isSimulation = sim.mode === "SIMULATION";
+    const syntheticReadings = isSimulation ? simulationEffects.getSyntheticReadings() : [];
+    const simReadingsMap = isSimulation
+      ? new Map(syntheticReadings.map((r) => [r.blueprintId, r]))
+      : null;
+
+    // Ingesta al backend: las lecturas simuladas recorren el pipeline real (alertas, WS).
+    telemetryEmitter.maybeSend(syntheticReadings, isSimulation && sim.running);
+
     terrainSystem.update({ showIsolines: sim.showIsolines, rainIntensity: visual.rainIntensity });
     const waterMetrics = waterSystem.update(
       {
@@ -206,6 +272,7 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
         fillRate: visual.fillRate,
         rainIntensity: visual.rainIntensity,
         time: t,
+        spillSeverity: visual.spillSeverity,
       },
       delta
     );
@@ -214,6 +281,7 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
     overflowSystem.update({
       freeboard: waterMetrics.freeboard,
       spillSeverity: waterMetrics.spillSeverity,
+      spillFlowM3s: visual.spillFlowM3s,
       surfaceY,
       time: t,
       delta,
@@ -252,13 +320,16 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
       sim.playbackSpeed
     );
 
+    hologramLayer.update(simReadingsMap, surfaceY, t, isSimulation);
+
     markerSystem.update({
       seepageLocation: visual.seepageLocation,
       seepageFlow: visual.seepageFlow,
       affectedSensors: [...affectedSensors],
       time: t,
+      simReadings: simReadingsMap,
     });
-    labelSystem.update();
+    labelSystem.update(simReadingsMap);
 
     if (onMetricsChange && now - lastMetricPush > 180) {
       onMetricsChange(simulationEffects.buildMetrics(waterMetrics));
@@ -297,12 +368,15 @@ export function createTwinEngine(options: TwinEngineOptions): TwinEngine {
       markerSystem.dispose();
       labelSystem.dispose();
       weatherSystem.dispose();
+      hologramLayer.dispose();
       drainageSystem.dispose();
       overflowSystem.dispose();
       weirStructure.dispose();
       waterSystem.dispose();
       damSystem.dispose();
       terrainSystem.dispose();
+      sky.mesh.geometry.dispose();
+      (sky.mesh.material as THREE.Material).dispose();
       envMap.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === mount) {

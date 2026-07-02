@@ -17,6 +17,8 @@ export type WaterPlaneVisualState = {
   fillRate: number;
   rainIntensity: number;
   time: number;
+  /** Severidad física del rebose [0..1] calculada por el motor (Q/Q_diseño). */
+  spillSeverity?: number;
 };
 
 export type WaterPlaneMetrics = {
@@ -60,12 +62,32 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
   surface.renderOrder = 2;
   scene.add(surface);
 
-  const beachMat = new THREE.MeshStandardMaterial({
-    color: 0x5c4e3a,
-    roughness: 0.96,
-    metalness: 0.02,
+  const beachMat = new THREE.ShaderMaterial({
     transparent: true,
-    opacity: 0.75,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    uniforms: {
+      time: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      void main() {
+        float t = vUv.x;
+        vec3 wet = vec3(0.38, 0.32, 0.24);
+        vec3 dry = vec3(0.62, 0.54, 0.42);
+        vec3 color = mix(wet, dry, smoothstep(0.0, 1.0, t));
+        float pulse = 0.92 + sin(time * 1.5) * 0.04;
+        gl_FragColor = vec4(color * pulse, 0.78 - t * 0.2);
+      }
+    `,
   });
   const beachRing = new THREE.Mesh(new THREE.RingGeometry(82, 92, 96), beachMat);
   beachRing.rotation.x = -Math.PI / 2;
@@ -74,7 +96,7 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
   scene.add(beachRing);
 
   const warningRingMat = new THREE.MeshBasicMaterial({
-    color: 0xf59e0b,
+    color: 0xd97706,
     transparent: true,
     opacity: 0,
     side: THREE.DoubleSide,
@@ -98,9 +120,11 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
   }
 
   const rebuildSurface = (spreadM: number) => {
-    if (Math.abs(spreadM - lastSpillSpread) < 0.05) return;
-    lastSpillSpread = spreadM;
-    const shape = spreadM > 0.02 ? getOverflowSpillShape(spreadM) : lakeShape;
+    const safeSpread = Number.isFinite(spreadM) ? spreadM : 0;
+    const visualSpread = Math.max(safeSpread, 0.08) * (safeSpread > 0.02 ? 3.5 : 1);
+    if (Math.abs(visualSpread - lastSpillSpread) < 0.05) return;
+    lastSpillSpread = visualSpread;
+    const shape = safeSpread > 0.02 ? getOverflowSpillShape(visualSpread) : lakeShape;
     surfaceGeometry.dispose();
     surfaceGeometry = new THREE.ShapeGeometry(shape, 48);
     surfaceGeometry.rotateX(-Math.PI / 2);
@@ -127,7 +151,12 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
       surface.position.y = surfaceY;
 
       const freeboard = CROWN_ELEVATION_M - smoothLevel;
-      const hydraulic = computeHydraulicAlert(freeboard, THREE.MathUtils.clamp(Math.max(0, -freeboard) / 1.5, 0, 1));
+      // Severidad física del motor (Q/Q_diseño) con fallback geométrico si no viene.
+      const physicalSeverity =
+        typeof state.spillSeverity === "number"
+          ? THREE.MathUtils.clamp(state.spillSeverity, 0, 1)
+          : THREE.MathUtils.clamp(Math.max(0, -freeboard) / 1.5, 0, 1);
+      const hydraulic = computeHydraulicAlert(freeboard, physicalSeverity);
       const { spillSeverity, spillM, lowFreeboard, activeOverflow } = hydraulic;
 
       rebuildSurface(spillM);
@@ -150,7 +179,7 @@ export function createWaterPlaneSystem(scene: THREE.Scene, _basinRadius: number)
       rippleFrame += 1;
 
       beachRing.position.y = surfaceY - 0.22;
-      beachMat.opacity = 0.55 + spillSeverity * 0.2;
+      (beachMat.uniforms.time as { value: number }).value = state.time;
 
       waterShader.update({ time: state.time, freeboard, spillSeverity, weirBoost: activeOverflow ? spillSeverity : 0 });
       linerMaterial.color.setHex(activeOverflow ? 0x2a2520 : lowFreeboard ? 0x252220 : GEOMEMBRANE);

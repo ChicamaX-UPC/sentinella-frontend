@@ -20,11 +20,20 @@ export type SelectedSensor = {
   unit?: string;
 };
 
+/** Lectura simulada mínima que el motor entrega por blueprintId. */
+export type MarkerReading = {
+  value: number;
+  unit: string;
+  status: string;
+};
+
 export type SensorMarkerVisualState = {
   seepageLocation: string;
   seepageFlow: number;
   affectedSensors: string[];
   time: number;
+  /** En modo simulación: lecturas sintéticas por blueprintId (tienen prioridad). */
+  simReadings?: ReadonlyMap<string, MarkerReading> | null;
 };
 
 export type SensorMarkerSystem = {
@@ -114,9 +123,12 @@ export function createSensorMarkerSystem(scene: THREE.Scene, nodes: TwinNode[]):
     scene.add(glow);
   }
 
+  let lastSimReadings: ReadonlyMap<string, MarkerReading> | null = null;
+
   return {
     meshes,
     update: (state) => {
+      lastSimReadings = state.simReadings ?? null;
       const seepagePi = SEEPAGE_PI[state.seepageLocation];
       const seepageActive = state.seepageFlow >= 5;
       const seepageCritical = state.seepageFlow >= SEEPAGE_CRITICAL_L_MIN;
@@ -126,11 +138,13 @@ export function createSensorMarkerSystem(scene: THREE.Scene, nodes: TwinNode[]):
         const mesh = meshes[i];
         const glow = glows[i];
         const blueprintId = String(mesh.userData.blueprintId ?? "");
-        const reading = resolveReading(
-          String(mesh.userData.nodeId),
-          String(mesh.userData.externalId ?? ""),
-          blueprintId
-        );
+        const reading =
+          state.simReadings?.get(blueprintId) ??
+          resolveReading(
+            String(mesh.userData.nodeId),
+            String(mesh.userData.externalId ?? ""),
+            blueprintId
+          );
         const status = String(reading?.status ?? "OK").toUpperCase();
         const mat = mesh.material as THREE.MeshStandardMaterial;
         const pulse = 1 + Math.sin(state.time * 3.2 + i * 0.4) * 0.18;
@@ -181,7 +195,8 @@ export function createSensorMarkerSystem(scene: THREE.Scene, nodes: TwinNode[]):
       const nodeId = String(hit.object.userData.nodeId);
       const externalId = String(hit.object.userData.externalId ?? "");
       const blueprintId = String(hit.object.userData.blueprintId ?? "");
-      const reading = resolveReading(nodeId, externalId, blueprintId);
+      const reading =
+        lastSimReadings?.get(blueprintId) ?? resolveReading(nodeId, externalId, blueprintId);
       return {
         nodeId,
         name: String(hit.object.userData.name ?? nodeId),

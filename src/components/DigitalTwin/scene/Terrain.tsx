@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { sampleTerrainHeight } from "@/components/DigitalTwin/terrainHeight";
+import { loadSatelliteTexture, loadSatelliteSkirtTexture } from "./SatelliteTerrain";
 
 export type TerrainVisualState = {
   showIsolines: boolean;
@@ -9,6 +10,7 @@ export type TerrainVisualState = {
 export type TerrainSystem = {
   update: (state: TerrainVisualState) => void;
   dispose: () => void;
+  satelliteLoaded: () => boolean;
 };
 
 function noise2d(x: number, z: number): number {
@@ -183,6 +185,41 @@ function createDirtTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasT
   return { map, bumpMap, roughnessMap };
 }
 
+function buildContourSegments(level: number, gridMin: number, gridMax: number, gridStep: number): THREE.Vector3[] {
+  const segments: THREE.Vector3[] = [];
+  const cols = Math.floor((gridMax - gridMin) / gridStep);
+  const rows = cols;
+
+  const interp = (ha: number, hb: number, ax: number, az: number, bx: number, bz: number) => {
+    const t = (level - ha) / (hb - ha || 1);
+    return new THREE.Vector3(ax + (bx - ax) * t, level + 0.12, az + (bz - az) * t);
+  };
+
+  for (let iz = 0; iz < rows; iz += 1) {
+    for (let ix = 0; ix < cols; ix += 1) {
+      const x0 = gridMin + ix * gridStep;
+      const z0 = gridMin + iz * gridStep;
+      const x1 = x0 + gridStep;
+      const z1 = z0 + gridStep;
+      const h00 = sampleTerrainHeight(x0, z0);
+      const h10 = sampleTerrainHeight(x1, z0);
+      const h11 = sampleTerrainHeight(x1, z1);
+      const h01 = sampleTerrainHeight(x0, z1);
+
+      const crossings: THREE.Vector3[] = [];
+      if ((h00 < level) !== (h10 < level)) crossings.push(interp(h00, h10, x0, z0, x1, z0));
+      if ((h10 < level) !== (h11 < level)) crossings.push(interp(h10, h11, x1, z0, x1, z1));
+      if ((h11 < level) !== (h01 < level)) crossings.push(interp(h11, h01, x1, z1, x0, z1));
+      if ((h01 < level) !== (h00 < level)) crossings.push(interp(h01, h00, x0, z1, x0, z0));
+
+      if (crossings.length === 2) {
+        segments.push(crossings[0], crossings[1]);
+      }
+    }
+  }
+  return segments;
+}
+
 export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   const terrainGeometry = new THREE.PlaneGeometry(920, 920, 140, 140);
   terrainGeometry.rotateX(-Math.PI / 2);
@@ -253,6 +290,22 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrain.receiveShadow = true;
   scene.add(terrain);
+
+  const SKIRT_EXTENT = 4000;
+  const skirtMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.95,
+    metalness: 0.02,
+  });
+  const skirt = new THREE.Mesh(new THREE.PlaneGeometry(SKIRT_EXTENT, SKIRT_EXTENT), skirtMaterial);
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = -8;
+  skirt.receiveShadow = false;
+  scene.add(skirt);
+
+  let satelliteTexture: THREE.CanvasTexture | null = null;
+  let skirtTexture: THREE.CanvasTexture | null = null;
+  let satelliteReady = false;
 
   // ------------------------------------------------------------------
   // Cancha de fútbol (se ve en la foto de referencia: parche verde cerca
@@ -357,7 +410,7 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   const peaksGroup = new THREE.Group();
   const stratum = typeof document !== "undefined" ? createStrataRockTexture() : null;
   const peakMat = new THREE.MeshStandardMaterial({
-    color: 0x9a8470,
+    color: 0x8a7560,
     map: stratum?.map ?? null,
     bumpMap: stratum?.bumpMap ?? null,
     bumpScale: 0.45,
@@ -439,6 +492,36 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   }
   scene.add(rocksGroup);
 
+  loadSatelliteTexture().then((result) => {
+    if (!result.loaded || !result.texture) return;
+    satelliteTexture = result.texture;
+    satelliteReady = true;
+    terrainMaterial.map = satelliteTexture;
+    terrainMaterial.vertexColors = true;
+    terrainMaterial.needsUpdate = true;
+    const colorAttr = terrainGeometry.attributes.color as THREE.BufferAttribute;
+    for (let i = 0; i < colorAttr.count; i += 1) {
+      colorAttr.setXYZ(
+        i,
+        0.75 + colorAttr.getX(i) * 0.25,
+        0.75 + colorAttr.getY(i) * 0.25,
+        0.75 + colorAttr.getZ(i) * 0.25
+      );
+    }
+    colorAttr.needsUpdate = true;
+    peaksGroup.visible = false;
+    rocksGroup.visible = false;
+    peakMat.color.setHex(0x7d6a58);
+    peakShadow.color.setHex(0x5a4a3c);
+  });
+
+  loadSatelliteSkirtTexture().then((result) => {
+    if (!result.loaded || !result.texture) return;
+    skirtTexture = result.texture;
+    skirtMaterial.map = skirtTexture;
+    skirtMaterial.needsUpdate = true;
+  });
+
   // ------------------------------------------------------------------
   // Mini planta de procesamiento (foto 2): conjunto de bodegas simples
   // al costado del tranque para dar contexto minero.
@@ -490,36 +573,10 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
   const gridStep = 20;
 
   for (let level = -5; level <= 72; level += 10) {
-    const points: THREE.Vector3[] = [];
-    for (let gz = gridMin; gz <= gridMax; gz += gridStep) {
-      let prevX = gridMin;
-      let prevH = sampleTerrainHeight(prevX, gz);
-      for (let gx = gridMin + gridStep; gx <= gridMax; gx += gridStep) {
-        const h = sampleTerrainHeight(gx, gz);
-        if ((prevH < level && h >= level) || (prevH >= level && h < level)) {
-          const t = (level - prevH) / (h - prevH || 1);
-          points.push(new THREE.Vector3(prevX + gridStep * t, level + 0.12, gz));
-        }
-        prevH = h;
-        prevX = gx;
-      }
-    }
-    for (let gx = gridMin; gx <= gridMax; gx += gridStep) {
-      let prevZ = gridMin;
-      let prevH = sampleTerrainHeight(gx, prevZ);
-      for (let gz = gridMin + gridStep; gz <= gridMax; gz += gridStep) {
-        const h = sampleTerrainHeight(gx, gz);
-        if ((prevH < level && h >= level) || (prevH >= level && h < level)) {
-          const t = (level - prevH) / (h - prevH || 1);
-          points.push(new THREE.Vector3(gx, level + 0.12, prevZ + gridStep * t));
-        }
-        prevH = h;
-        prevZ = gz;
-      }
-    }
-    if (points.length >= 2) {
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      isolines.add(new THREE.Line(geo, isolineMat.clone()));
+    const segments = buildContourSegments(level, gridMin, gridMax, gridStep);
+    if (segments.length >= 2) {
+      const geo = new THREE.BufferGeometry().setFromPoints(segments);
+      isolines.add(new THREE.LineSegments(geo, isolineMat.clone()));
     }
   }
   isolines.visible = false;
@@ -532,8 +589,10 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
       terrainMaterial.roughness = 0.92 - wetness * 0.4;
       terrainMaterial.metalness = 0.05 + wetness * 0.1;
     },
+    satelliteLoaded: () => satelliteReady,
     dispose: () => {
       scene.remove(terrain);
+      scene.remove(skirt);
       scene.remove(fieldGroup);
       scene.remove(peaksGroup);
       scene.remove(rocksGroup);
@@ -541,6 +600,10 @@ export function createTerrainSystem(scene: THREE.Scene): TerrainSystem {
       scene.remove(isolines);
       terrainGeometry.dispose();
       terrainMaterial.dispose();
+      skirt.geometry.dispose();
+      skirtMaterial.dispose();
+      satelliteTexture?.dispose();
+      skirtTexture?.dispose();
       isolineMat.dispose();
       const freeBranch = (g: THREE.Object3D) => {
         g.traverse((obj) => {

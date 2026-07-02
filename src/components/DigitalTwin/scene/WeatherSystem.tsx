@@ -13,7 +13,10 @@ export type WeatherSystem = {
 
 const MAX_DROPS = 1000;
 
-export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
+export function createWeatherSystem(
+  scene: THREE.Scene,
+  setSkyDarkness: (d: number) => void
+): WeatherSystem {
   const rainGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6);
   const rainMaterial = new THREE.MeshBasicMaterial({
     color: 0xb9d9ff,
@@ -38,14 +41,8 @@ export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
   const tempScale = new THREE.Vector3(1, 1, 1);
   let visibleDrops = 0;
 
-  // Cielo diurno base (coherente con TwinCanvas); la lluvia lo oscurece poco a poco.
-  const baseBackground = new THREE.Color(0xbdd6e8);
-  const overcast = new THREE.Color(0x6b7c90);
-  const nightish = new THREE.Color(0x1e2a3a);
-  const lerpedBg = baseBackground.clone();
-  scene.background = lerpedBg.clone();
-  // Niebla ligera: densidad baja; sube solo con lluvia fuerte.
-  scene.fog = new THREE.FogExp2(0xc9dbe8, 0.00018);
+  const fogBase = new THREE.Color(0xc9dbe8);
+  scene.fog = new THREE.FogExp2(fogBase.getHex(), 0.00018);
 
   return {
     update: (state, delta, speed) => {
@@ -75,16 +72,11 @@ export function createWeatherSystem(scene: THREE.Scene): WeatherSystem {
       }
       rain.instanceMatrix.needsUpdate = true;
 
-      lerpedBg
-        .copy(baseBackground)
-        .lerp(overcast, normalized * 0.5)
-        .lerp(nightish, Math.max(0, normalized - 0.5) * 0.4);
-      scene.background = lerpedBg;
+      setSkyDarkness(normalized * 0.75);
 
       const fog = scene.fog as THREE.FogExp2 | null;
       if (fog) {
-        fog.color.copy(lerpedBg);
-        // Tormenta: algo mas densa, pero sin tapar los cerros.
+        fog.color.copy(fogBase).lerp(new THREE.Color(0x6b7c90), normalized * 0.5);
         fog.density = 0.00018 + normalized * 0.00055;
       }
     },
